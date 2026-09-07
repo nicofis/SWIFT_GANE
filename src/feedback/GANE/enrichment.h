@@ -665,7 +665,7 @@ INLINE static void evolve_AGB(const double log10_min_mass,
 
 /**
  * [GANE]
- * @brief compute enrichment and feedback due to XRB. To do this, integrate the
+ * @brief compute enrichment and feedback due to HMXB. To do this, integrate the
  * IMF weighted by the yields read from tables for each of the quantities of
  * interest.
  *
@@ -679,7 +679,7 @@ INLINE static void evolve_AGB(const double log10_min_mass,
  * @param feedback_data (return) The #feedback_spart_data to fill with things to
  * distribute to the gas.
  */
-INLINE static void evolve_XRB(const double log10_min_mass,
+INLINE static void evolve_HMXB(const double log10_min_mass,
                               double log10_max_mass, const double M_init,
                               const double Z, const float *const abundances,
                               const struct feedback_props *props,
@@ -689,13 +689,13 @@ INLINE static void evolve_XRB(const double log10_min_mass,
 
   /* Metal mass produced by the star */
   const double *const total_yields =
-      props->yield_XRB.total_metals_IMF_resampled;
+      props->yield_HMXB.total_metals_IMF_resampled;
 
   /* Individual elements produced by the star */
-  const double *const metal_yields = props->yield_XRB.yield_IMF_resampled;
+  const double *const metal_yields = props->yield_HMXB.yield_IMF_resampled;
 
   /* Elements already in the stars that are ejected */
-  const double *const ejecta = props->yield_XRB.ejecta_IMF_resampled;
+  const double *const ejecta = props->yield_HMXB.ejecta_IMF_resampled;
 
   /* If mass at end of step is greater than tabulated lower bound for IMF, limit
    * it.*/
@@ -715,8 +715,8 @@ INLINE static void evolve_XRB(const double log10_min_mass,
   int index_Z_lo = 0, index_Z_hi = 0;
   float dZ = 0.f;
   determine_bin_yields(&index_Z_lo, &index_Z_hi, &dZ, log10(Z),
-                       props->yield_XRB.metallicity,
-                       eagle_feedback_XRB_N_metals);
+                       props->yield_HMXB.metallicity,
+                       eagle_feedback_HMXB_N_metals);
 
   /* Allocate temporary array for calculating imf weights */
   double stellar_yields[eagle_feedback_N_imf_bins];
@@ -734,17 +734,17 @@ INLINE static void evolve_XRB(const double log10_min_mass,
          mass_bin_index < high_imf_mass_bin_index + 1; mass_bin_index++) {
 
       const int lo_index_3d = row_major_index_3d(
-          index_Z_lo, elem, mass_bin_index, eagle_feedback_XRB_N_metals,
+          index_Z_lo, elem, mass_bin_index, eagle_feedback_HMXB_N_metals,
           chemistry_element_count, eagle_feedback_N_imf_bins);
       const int hi_index_3d = row_major_index_3d(
-          index_Z_hi, elem, mass_bin_index, eagle_feedback_XRB_N_metals,
+          index_Z_hi, elem, mass_bin_index, eagle_feedback_HMXB_N_metals,
           chemistry_element_count, eagle_feedback_N_imf_bins);
 
       const int lo_index_2d = row_major_index_2d(index_Z_lo, mass_bin_index,
-                                                 eagle_feedback_XRB_N_metals,
+                                                 eagle_feedback_HMXB_N_metals,
                                                  eagle_feedback_N_imf_bins);
       const int hi_index_2d = row_major_index_2d(index_Z_hi, mass_bin_index,
-                                                 eagle_feedback_XRB_N_metals,
+                                                 eagle_feedback_HMXB_N_metals,
                                                  eagle_feedback_N_imf_bins);
       stellar_yields[mass_bin_index] =
           (1.f - dZ) * (metal_yields[lo_index_3d] +
@@ -765,10 +765,10 @@ INLINE static void evolve_XRB(const double log10_min_mass,
        mass_bin_index < high_imf_mass_bin_index + 1; mass_bin_index++) {
 
     const int lo_index_2d = row_major_index_2d(index_Z_lo, mass_bin_index,
-                                               eagle_feedback_XRB_N_metals,
+                                               eagle_feedback_HMXB_N_metals,
                                                eagle_feedback_N_imf_bins);
     const int hi_index_2d = row_major_index_2d(index_Z_hi, mass_bin_index,
-                                               eagle_feedback_XRB_N_metals,
+                                               eagle_feedback_HMXB_N_metals,
                                                eagle_feedback_N_imf_bins);
 
     stellar_yields[mass_bin_index] =
@@ -788,10 +788,10 @@ INLINE static void evolve_XRB(const double log10_min_mass,
        mass_bin_index < high_imf_mass_bin_index + 1; mass_bin_index++) {
 
     const int lo_index_2d = row_major_index_2d(index_Z_lo, mass_bin_index,
-                                               eagle_feedback_XRB_N_metals,
+                                               eagle_feedback_HMXB_N_metals,
                                                eagle_feedback_N_imf_bins);
     const int hi_index_2d = row_major_index_2d(index_Z_hi, mass_bin_index,
-                                               eagle_feedback_XRB_N_metals,
+                                               eagle_feedback_HMXB_N_metals,
                                                eagle_feedback_N_imf_bins);
 
     stellar_yields[mass_bin_index] =
@@ -824,12 +824,12 @@ INLINE static void evolve_XRB(const double log10_min_mass,
   for (int i = 0; i < chemistry_element_count; i++) {
     feedback_data->to_distribute.metal_mass[i] +=
         metal_mass_released[i] * norm_factor;
-    feedback_data->to_distribute.mass_from_XRB +=
+    feedback_data->to_distribute.mass_from_HMXB +=
         metal_mass_released[i] * norm_factor;
   }
   feedback_data->to_distribute.total_metal_mass +=
       metal_mass_released_total * norm_factor;
-  feedback_data->to_distribute.metal_mass_from_XRB +=
+  feedback_data->to_distribute.metal_mass_from_HMXB +=
       metal_mass_released_total * norm_factor;
 }
 
