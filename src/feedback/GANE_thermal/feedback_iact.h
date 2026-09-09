@@ -431,6 +431,54 @@ runner_iact_nonsym_feedback_apply(
       timestep_sync_part(pj);
     }
   }
+
+  /* Finally, HMXB feedback [GANE] */
+
+  /* Get the total number of HMXB thermal energy injections per stellar
+   * particle at this time-step */
+  const int N_of_HMXB_thermal_energy_inj =
+      si->feedback_data.to_distribute.HMXB_num_of_thermal_energy_inj;
+
+  /* Are we doing some HMXB feedback? */
+  if (N_of_HMXB_thermal_energy_inj > 0) {
+
+    int N_of_HMXB_energy_inj_received_by_gas = 0;
+
+    /* Find out how many rays this gas particle has received. */
+    for (int i = 0; i < N_of_HMXB_thermal_energy_inj; i++) {
+      if (pj->id == si->feedback_data.SNII_rays[i].id_min_length) /* Nos acoplamos al SNII_rays o generamos otro set de rayos para HMXB?*/
+        N_of_HMXB_energy_inj_received_by_gas++;
+    }
+
+    /* If the number of HMXB energy injections > 0, do HMXB feedback */
+    if (N_of_HMXB_energy_inj_received_by_gas > 0) {
+
+      /* Compute new energy of this particle */
+      const double u_init = hydro_get_physical_internal_energy(pj, xpj, cosmo);
+      const float delta_u = si->feedback_data.to_distribute.HMXB_delta_u;
+      const double u_new =
+          u_init + delta_u * (float)N_of_HMXB_energy_inj_received_by_gas;
+
+      /* Inject energy into the particle */
+      hydro_set_physical_internal_energy(pj, xpj, cosmo, u_new);
+      hydro_set_drifted_physical_internal_energy(pj, cosmo, /*pfloor=*/NULL,
+                                                 u_new);
+
+      /* Impose maximal viscosity */
+      hydro_diffusive_feedback_reset(pj);
+
+      /* Mark this particle has having been heated by HMXB feedback */
+      tracers_after_feedback(xpj);
+
+      /* message( */
+      /*     "We did some heating! id %llu star id %llu probability %.5e " */
+      /*     "random_num %.5e du %.5e du/ini %.5e", */
+      /*     pj->id, si->id, 0., 0., delta_u, delta_u / u_init); */
+
+      /* Synchronize the particle on the timeline */
+      timestep_sync_part(pj);
+    }
+  }
 }
 
 #endif /* SWIFT_EAGLE_FEEDBACK_IACT_THERMAL_H */

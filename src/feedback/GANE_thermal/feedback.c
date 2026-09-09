@@ -253,6 +253,264 @@ INLINE static void compute_SNII_feedback(
 }
 
 /**
+ * @brief Return the change in energy (in internal units) to apply to a
+ * gas particle affected by HMXB feedback [GANE].
+ *
+ * @param sp The #spart.
+ * @param props The properties of the feedback model.
+ */
+double gane_feedback_energy_change(const struct spart *sp,
+                                   const struct feedback_props *props) {
+
+  /* GANE MODEL */
+  double dE_dt = ; // Aquí iría la expresión para dE_dt(t,Z)
+  double delta_E = dE_dt * sp->dt_star; // ARREGLAR dt_star para que sea el timestep
+  // /* In the EAGLE REF model, the change of temperature is constant */
+  // return props->SNII_deltaT_desired;
+}
+
+/**
+ * @brief Computes the fraction of the available HMXB energy to
+ * inject for a given event [GANE].
+ *
+ * Note that the fraction can be > 1.
+ *
+ * This allows a choice of different f_th scaling functions.
+ *
+ * @param sp The #spart.
+ * @param props The properties of the feedback model.
+ * @param ngb_nH_cgs Hydrogen number density of the gas surrounding the star
+ * (physical cgs units).
+ * @param ngb_Z Metallicity (metal mass fraction) of the gas surrounding the
+ * star.
+ */
+double gane_feedback_energy_fraction(const struct spart *sp,
+                                      const struct feedback_props *props) {
+                                      // ,
+                                      // const double ngb_nH_cgs,
+                                      // const double ngb_Z) {
+  /* Model parameter */
+  const double f_E = props->f_E_HMXB;
+  return f_E;
+
+  /* EAGLE implementation */
+  /* Model parameters */
+  // const double f_E_max = props->f_E_max;
+  // const double f_E_min = props->f_E_min;
+  // const double Z_0 = props->Z_0;
+  // const double n_0 = props->n_0_cgs;
+  // const double n_Z = props->n_Z;
+  // const double n_n = props->n_n;
+
+  // /* Metallicity (metal mass fraction) at birth time of the star */
+  // const double Z_birth =
+  //     chemistry_get_star_total_metal_mass_fraction_for_feedback(sp);
+
+  // /* Physical density of the gas at the star's birth time */
+  // const double rho_birth = sp->birth_density;
+  // const double n_birth_cgs = rho_birth * props->rho_to_n_cgs;
+
+  // /* Choose either the birth properties or current properties */
+  // const double nH =
+  //     props->use_birth_density_for_f_th ? n_birth_cgs : ngb_nH_cgs;
+  // const double Z = props->use_birth_Z_for_f_th ? Z_birth : ngb_Z;
+
+  // /* Calculate f_E */
+  // const double Z_term = pow(max(Z, 1e-6) / Z_0, -n_Z);
+  // const double n_term = pow(nH / n_0, n_n);
+
+  // /* Different behaviour for different scaling functions ahead */
+  // double f_th;
+  // if (props->SNII_energy_scaling == SNII_scaling_independent) {
+  //   /* Independent scaling of f_th with Z and n. Here, we have a second
+  //    * parameter for the max f_th increase due to density, delta_E_n. */
+  //   const double delta_E_n = props->SNII_delta_E_n;
+  //   f_th = (f_E_max - (f_E_max - f_E_min) / (1. + Z_term)) *
+  //          (delta_E_n - (delta_E_n - 1.) / (1. + n_term));
+
+  // } else if (props->SNII_energy_scaling == SNII_scaling_separable) {
+  //   /* Separable scaling between fixed fE_min and fE_max */
+  //   f_th = f_E_max - (f_E_max - f_E_min) / ((1. + Z_term) * (1. + n_term));
+
+  // } else if (props->SNII_energy_scaling == SNII_scaling_EAGLE) {
+  //   /* Mixed scaling as described in Schaye et al. (2015) for EAGLE */
+  //   f_th = f_E_max - (f_E_max - f_E_min) / (1. + Z_term * n_term);
+
+  // } else {
+  //   error("Invalid SNII energy scaling model!");
+  //   f_th = -1.;
+  // }
+
+  // return f_th;
+}
+
+/**
+ * @brief Compute the properties of the HMXB feedback energy injection.
+ *
+ * Only does something if the particle reached the HMXB active age during this time
+ * step.
+ *
+ * @param sp The star particle.
+ * @param star_age Age of star at the beginning of the step in internal units.
+ * @param dt Length of time-step in internal units.
+ * @param ngb_gas_mass Total un-weighted mass in the star's kernel (internal
+ * units)
+ * @param num_gas_ngbs Total (integer) number of gas neighbours within the
+ * star's kernel.
+ * @param ngb_nH_cgs Hydrogen number density of the gas surrounding the star
+ * (physical cgs units).
+ * @param ngb_Z Metallicity (metal mass fraction) of the gas surrounding the
+ * star.
+ * @param feedback_props The properties of the feedback model.
+ * @param min_dying_mass_Msun Minimal star mass dying this step (in solar
+ * masses).
+ * @param max_dying_mass_Msun Maximal star mass dying this step (in solar
+ * masses).
+ */
+INLINE static void compute_HMXB_feedback(
+    struct spart *sp, const double star_age, const double dt,
+    const int ngb_gas_N, const float ngb_gas_mass, const double ngb_nH_cgs,
+    const double ngb_Z, const struct feedback_props *feedback_props,
+    const double min_dying_mass_Msun, const double max_dying_mass_Msun,
+    const integertime_t ti_begin) {
+
+  /* DEFINIR SI HAY DELAY */
+  /* Are we sampling the delay function or using a fixed delay? */
+  const int HMXB_sampled_delay = feedback_props->HMXB_sampled_delay;
+
+  /* Time after birth considered for HMXB feedback (internal units)
+   * when using a fixed delay */
+  const double HMXB_wind_delay = feedback_props->HMXB_wind_delay;
+
+  /* Are we doing feedback this step?
+   * Note that since the ages are calculated using an interpolation table we
+   * must allow some tolerance here*/
+  if ((HMXB_sampled_delay) || (star_age <= HMXB_wind_delay &&
+                               (star_age + 1.001 * dt) > HMXB_wind_delay)) {
+
+    /* Make sure a star does not do feedback twice
+     * when using a fixed delay! */
+    if (!HMXB_sampled_delay && sp->f_E != -1.f) {
+#ifdef SWIFT_DEBUG_CHECKS
+      message("Star has already done feedback! sp->id=%lld age=%e d=%e", sp->id,
+              star_age, dt);
+#endif
+      return;
+    }
+
+    /* Properties of the model (all in internal units) */
+    /* GANE */
+    const double delta_E =
+        gane_feedback_energy_change(sp, feedback_props);
+    const double E_HMXB = feedback_props->E_HMXB; // CREO QUE ES INNECESARIA EN ESTE MODELO
+    const double f_E =
+        gane_feedback_energy_fraction(sp, feedback_props);
+
+    /* EAGLE */
+    // const double delta_T =
+    //     eagle_feedback_temperature_change(sp, feedback_props);
+    // const double E_SNe = feedback_props->E_SNII;
+    // const double f_E =
+    //     eagle_feedback_energy_fraction(sp, feedback_props, ngb_nH_cgs, ngb_Z);
+    
+    /* GANE */
+    /* Number of HMXB injection events at this time-step [FALTA IMPLEMENTAR LAS FUNCIONES EN enrichment.h, DE SER NECESARIO]*/
+    double N_HMXB;
+    if (HMXB_sampled_delay) {
+      N_HMXB = eagle_feedback_number_of_sampled_HMXB(
+          sp, feedback_props, min_dying_mass_Msun, max_dying_mass_Msun);
+    } else {
+      N_HMXB = eagle_feedback_number_of_HMXB(sp, feedback_props);
+    }
+
+    /* Abort if there are no SNe exploding this step */
+    if (N_HMXB <= 0.) return;
+
+    /* EAGLE */
+    // /* Number of SNe at this time-step */
+    // double N_SNe;
+    // if (SNII_sampled_delay) {
+    //   N_SNe = eagle_feedback_number_of_sampled_SNII(
+    //       sp, feedback_props, min_dying_mass_Msun, max_dying_mass_Msun);
+    // } else {
+    //   N_SNe = eagle_feedback_number_of_SNII(sp, feedback_props);
+    // }
+
+    // /* Abort if there are no SNe exploding this step */
+    // if (N_SNe <= 0.) return;
+
+    /* SECCIÓN ESTOCÁSTICA DE EAGLE */
+    // /* Conversion factor from T to internal energy */
+    // const double conv_factor = feedback_props->temp_to_u_factor;
+
+    // /* Calculate the default heating probability (accounting for round-off) */
+    // double prob = f_E * E_SNe * N_SNe / (conv_factor * delta_T * ngb_gas_mass);
+    // prob = max(prob, 0.0);
+
+    // /* Calculate the change in internal energy of the gas particles that get
+    //  * heated */
+    // double delta_u;
+
+    // /* Number of SNII events for this stellar particle */
+    // int number_of_SN_events = 0;
+
+    // if (prob <= 1.) {
+
+    //   /* Normal case */
+    //   delta_u = delta_T * conv_factor;
+
+    //   for (int i = 0; i < ngb_gas_N; i++) {
+    //     const double rand_thermal = random_unit_interval_part_ID_and_index(
+    //         sp->id, i, ti_begin, random_number_stellar_feedback_3);
+    //     if (rand_thermal < prob) number_of_SN_events++;
+    //   }
+
+    // } else {
+
+    //   /* Special case: we need to adjust the energy irrespective of the
+    //      desired deltaT to ensure we inject all the available energy. */
+    //   delta_u = f_E * E_SNe * N_SNe / ngb_gas_mass;
+
+    //   /* Number of SNIa events is equal to the number of Ngbs */
+    //   number_of_SN_events = ngb_gas_N;
+    // }
+
+// #ifdef SWIFT_DEBUG_CHECKS
+//     if (f_E < feedback_props->f_E_min || f_E > feedback_props->f_E_max)
+//       error("f_E is not in the valid range! f_E=%f sp->id=%lld", f_E, sp->id);
+// #endif
+    /* GANE */
+    delta_u = delta_E;
+    /* If we have more heating events than the maximum number of
+     * rays (eagle_feedback_number_of_rays), then we cannot
+     * distribute all of the heating events (since 1 event = 1 ray), so we need
+     * to increase the thermal energy per ray and make the number of events
+     * equal to the number of rays */
+    if (number_of_HMXB_events > eagle_HMXB_feedback_num_of_rays) {
+      const double alpha_thermal =
+          (double)number_of_HMXB_events / (double)eagle_HMXB_feedback_num_of_rays;
+      delta_u *= alpha_thermal;
+      number_of_HMXB_events = eagle_HMXB_feedback_num_of_rays;
+    }
+    /* En esta parte de arriba, se podría simplemente hacer N_events = N_ngb, luego seguiría: */
+    
+
+    /* Current total f_E for this star [SOLO SI USAMOS N_HMXB] */
+    double star_f_E = sp->f_E * sp->number_of_HMXB_events;
+
+    /* New total */
+    star_f_E = (star_f_E + f_E) / (sp->number_of_HMXB_events + 1.);
+
+    /* Store all of this in the star for delivery onto the gas and recording */
+    sp->f_E = star_f_E;
+    sp->number_of_HMXB_events++;
+    sp->feedback_data.to_distribute.HMXB_delta_u = delta_u;
+    sp->feedback_data.to_distribute.HMXB_num_of_thermal_energy_inj =
+        number_of_HMXB_events;
+  }
+}
+
+/**
  * @brief calculates stellar mass in spart that died over the timestep, calls
  * functions to calculate feedback due to SNIa, SNII and AGB
  *

@@ -52,15 +52,6 @@ static const float log10_min_metallicity = -20;
 /*! Number of metallicity bins considered for the AGB yields */
 #define eagle_feedback_AGB_N_metals 3
 
-/*! Number of elements considered for the HMXB yields [GANE] */
-#define gane_feedback_HMXB_N_elements 11
-
-/*! Number of mass bins considered for the HMXB yields [GANE] */
-#define gane_feedback_HMXB_N_masses 23
-
-/*! Number of metallicity bins considered for the HMXB yields [GANE] */
-#define gane_feedback_HMXB_N_metals 3
-
 /*! Number od mass bins along the mass axis of the lifetime table */
 #define eagle_feedback_lifetime_N_masses 30
 
@@ -407,122 +398,6 @@ INLINE static void read_yield_tables(struct feedback_props *feedback_props) {
     }
   }
 
-  /* Read HMXB tables [GANE] */
-  sprintf(fname, "%s/HMXB.hdf5", feedback_props->yield_table_path);
-  file_id = H5Fopen(fname, H5F_ACC_RDONLY, H5P_DEFAULT);
-  if (file_id < 0) error("unable to open file %s\n", fname);
-
-  /* read element name array */
-  datatype = H5Tcopy(H5T_C_S1);
-  H5Tset_size(datatype, H5T_VARIABLE);
-  dataset = H5Dopen(file_id, "Species_names", H5P_DEFAULT);
-  dataspace = H5Dget_space(dataset);
-
-  temp = (char **)malloc(eagle_feedback_HMXB_N_elements * sizeof(char *));
-  status = H5Dread(dataset, datatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, temp);
-  if (status < 0) error("error reading HMXB element names");
-
-  /* Copy the element names into their final destination */
-  for (int i = 0; i < eagle_feedback_HMXB_N_elements; i++) {
-    memcpy(feedback_props->HMXB_element_names[i], temp[i], strlen(temp[i]));
-  }
-
-  /* Release the memory allocated by HDF5 for the strings */
-  status = H5Dvlen_reclaim(datatype, dataspace, H5P_DEFAULT, temp);
-  if (status < 0) error("error freeing string memory");
-  status = H5Dclose(dataset);
-  if (status < 0) error("error closing dataset");
-  status = H5Tclose(datatype);
-  if (status < 0) error("error closing datatype");
-  status = H5Sclose(dataspace);
-  if (status < 0) error("error closing dataspace");
-
-  /* Free the temporary memory */
-  free(temp);
-
-  /* read array of masses */
-  dataset = H5Dopen(file_id, "Masses", H5P_DEFAULT);
-  status = H5Dread(dataset, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT,
-                   feedback_props->yield_HMXB.mass);
-  if (status < 0) error("error reading HMXB masses");
-  status = H5Dclose(dataset);
-  if (status < 0) error("error closing dataset");
-
-  /* read array of metallicities */
-  dataset = H5Dopen(file_id, "Metallicities", H5P_DEFAULT);
-  status = H5Dread(dataset, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT,
-                   feedback_props->yield_HMXB.metallicity);
-  if (status < 0) error("error reading HMXB metallicities");
-  status = H5Dclose(dataset);
-  if (status < 0) error("error closing dataset");
-
-  /* declare temporary arrays to read data from HDF5 files */
-  double temp_yield_HMXB[eagle_feedback_HMXB_N_elements]
-                       [eagle_feedback_HMXB_N_masses];
-  double temp_ejecta_HMXB[eagle_feedback_HMXB_N_masses],
-      tempmet2[eagle_feedback_HMXB_N_masses];
-  char *metallicity_yield_table_name_HMXB[eagle_feedback_HMXB_N_metals];
-
-  /* read metallicity names */
-  datatype = H5Tcopy(H5T_C_S1);
-  H5Tset_size(datatype, H5T_VARIABLE);
-  dataset2 = H5Dopen(file_id, "Yield_names", H5P_DEFAULT);
-  dataspace = H5Dget_space(dataset2);
-
-  status = H5Dread(dataset2, datatype, H5S_ALL, H5S_ALL, H5P_DEFAULT,
-                   metallicity_yield_table_name_HMXB);
-  if (status < 0) error("error reading yield table names");
-
-  /* read HMXB yield tables */
-  for (int i = 0; i < eagle_feedback_HMXB_N_metals; i++) {
-    /* read yields to temporary array */
-    sprintf(setname, "/Yields/%s/Yield", metallicity_yield_table_name_HMXB[i]);
-    dataset = H5Dopen(file_id, setname, H5P_DEFAULT);
-    status = H5Dread(dataset, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT,
-                     temp_yield_HMXB);
-    if (status < 0) error("error reading HMXB yield");
-    status = H5Dclose(dataset);
-    if (status < 0) error("error closing dataset");
-
-    /* read mass ejected table to temporary array */
-    sprintf(setname, "/Yields/%s/Ejected_mass",
-            metallicity_yield_table_name_HMXB[i]);
-    dataset = H5Dopen(file_id, setname, H5P_DEFAULT);
-    status = H5Dread(dataset, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT,
-                     temp_ejecta_HMXB);
-    if (status < 0) error("error reading HMXB ejected masses");
-    status = H5Dclose(dataset);
-    if (status < 0) error("error closing dataset");
-
-    /* read total metals table to temporary array */
-    sprintf(setname, "/Yields/%s/Total_Metals",
-            metallicity_yield_table_name_HMXB[i]);
-    dataset = H5Dopen(file_id, setname, H5P_DEFAULT);
-    status = H5Dread(dataset, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT,
-                     tempmet2);
-    if (status < 0) error("error reading HMXB total metals");
-    status = H5Dclose(dataset);
-    if (status < 0) error("error closing dataset");
-
-    /* Flatten the temporary tables that were read, store in stars_props */
-    for (int k = 0; k < eagle_feedback_HMXB_N_masses; k++) {
-
-      const int flat_index = row_major_index_2d(
-          i, k, eagle_feedback_HMXB_N_metals, eagle_feedback_HMXB_N_masses);
-
-      feedback_props->yield_HMXB.ejecta[flat_index] = temp_ejecta_HMXB[k];
-      feedback_props->yield_HMXB.total_metals[flat_index] = tempmet2[k];
-
-      for (int j = 0; j < eagle_feedback_HMXB_N_elements; j++) {
-        const int flat_index_Z = row_major_index_3d(
-            i, j, k, eagle_feedback_HMXB_N_metals, eagle_feedback_HMXB_N_elements,
-            eagle_feedback_HMXB_N_masses);
-
-        feedback_props->yield_HMXB.yield[flat_index_Z] = temp_yield_HMXB[j][k];
-      }
-    }
-  }
-
   /* Release the memory allocated by HDF5 for the strings */
   status = H5Dvlen_reclaim(datatype, dataspace, H5P_DEFAULT,
                            metallicity_yield_table_name_AGB);
@@ -673,78 +548,6 @@ INLINE static void allocate_yield_tables(
     error("Failed to allocate AGB total metals IMF resampled array");
   }
 
-  /* Allocate array for HMXB mass bins [GANE] */
-  if (swift_memalign("feedback-tables",
-                     (void **)&feedback_props->yield_HMXB.mass,
-                     SWIFT_STRUCT_ALIGNMENT,
-                     gane_feedback_HMXB_N_masses * sizeof(double)) != 0) {
-    error("Failed to allocate HMXB mass array");
-  }
-
-  /* Allocate array for HMXB metallicity bins [GANE]*/
-  if (swift_memalign("feedback-tables",
-                     (void **)&feedback_props->yield_HMXB.metallicity,
-                     SWIFT_STRUCT_ALIGNMENT,
-                     gane_feedback_HMXB_N_metals * sizeof(double)) != 0) {
-    error("Failed to allocate HMXB metallicity array");
-  }
-
-  /* Allocate array to store HMXB yield tables [GANE]*/
-  if (swift_memalign("feedback-tables",
-                     (void **)&feedback_props->yield_HMXB.yield,
-                     SWIFT_STRUCT_ALIGNMENT,
-                     gane_feedback_HMXB_N_metals * gane_feedback_HMXB_N_masses *
-                         gane_feedback_HMXB_N_elements * sizeof(double)) != 0) {
-    error("Failed to allocate HMXB yield array");
-  }
-
-  /* Allocate array to store HMXB yield table resampled by IMF mass bins [GANE]*/
-  if (swift_memalign("feedback-tables",
-                     (void **)&feedback_props->yield_HMXB.yield_IMF_resampled,
-                     SWIFT_STRUCT_ALIGNMENT,
-                     gane_feedback_HMXB_N_metals * eagle_feedback_N_imf_bins *
-                         chemistry_element_count * sizeof(double)) != 0) {
-    error("Failed to allocate HMXB IMF resampled array");
-  }
-
-  /* Allocate array to store HMXB ejecta tables [GANE]*/
-  if (swift_memalign("feedback-tables",
-                     (void **)&feedback_props->yield_HMXB.ejecta,
-                     SWIFT_STRUCT_ALIGNMENT,
-                     gane_feedback_HMXB_N_metals * gane_feedback_HMXB_N_masses *
-                         sizeof(double)) != 0) {
-    error("Failed to allocate HMXB ejecta array");
-  }
-
-  /* Allocate array to store HMXB ejecta table resampled by IMF mass bins [GANE]*/
-  if (swift_memalign("feedback-tables",
-                     (void **)&feedback_props->yield_HMXB.ejecta_IMF_resampled,
-                     SWIFT_STRUCT_ALIGNMENT,
-                     gane_feedback_HMXB_N_metals * eagle_feedback_N_imf_bins *
-                         sizeof(double)) != 0) {
-    error("Failed to allocate HMXB ejecta IMF resampled array");
-  }
-
-  /* Allocate array to store table of total metals released by HMXB [GANE]*/
-  if (swift_memalign("feedback-tables",
-                     (void **)&feedback_props->yield_HMXB.total_metals,
-                     SWIFT_STRUCT_ALIGNMENT,
-                     gane_feedback_HMXB_N_metals * gane_feedback_HMXB_N_masses *
-                         sizeof(double)) != 0) {
-    error("Failed to allocate HMXB total metals array");
-  }
-
-  /* Allocate array to store table of total metals released by HMXB resampled by
-   * IMF mass bins [GANE]*/
-  if (swift_memalign(
-          "feedback-tables",
-          (void **)&feedback_props->yield_HMXB.total_metals_IMF_resampled,
-          SWIFT_STRUCT_ALIGNMENT,
-          gane_feedback_HMXB_N_metals * eagle_feedback_N_imf_bins *
-              sizeof(double)) != 0) {
-    error("Failed to allocate HMXB total metals IMF resampled array");
-  }
-
   /* Allocate array for SNII mass bins */
   if (swift_memalign("feedback-tables",
                      (void **)&feedback_props->yield_SNII.mass,
@@ -841,7 +644,7 @@ INLINE static void allocate_yield_tables(
         (double *)malloc(eagle_feedback_lifetime_N_masses * sizeof(double));
   }
 
-  /* Allocate arrays to store names of elements tracked for SNIa, SNII, AGB[, HMXB (GANE)]  */
+  /* Allocate arrays to store names of elements tracked for SNIa, SNII, AGB  */
   feedback_props->SNIa_element_names =
       (char **)malloc(eagle_feedback_SNIa_N_elements * sizeof(char *));
   for (int i = 0; i < eagle_feedback_SNIa_N_elements; i++) {
@@ -864,15 +667,6 @@ INLINE static void allocate_yield_tables(
     feedback_props->AGB_element_names[i] =
         (char *)malloc(eagle_feedback_element_name_length * sizeof(char));
     memset(feedback_props->AGB_element_names[i], 0,
-           eagle_feedback_element_name_length);
-  }
-  /*[GANE]*/
-  feedback_props->HMXB_element_names =
-      (char **)malloc(gane_feedback_HMXB_N_elements * sizeof(char *));
-  for (int i = 0; i < gane_feedback_HMXB_N_elements; i++) {
-    feedback_props->HMXB_element_names[i] =
-        (char *)malloc(eagle_feedback_element_name_length * sizeof(char));
-    memset(feedback_props->HMXB_element_names[i], 0,
            eagle_feedback_element_name_length);
   }
 
@@ -922,24 +716,9 @@ INLINE static void compute_yields(struct feedback_props *feedback_props) {
     }
   }
 
-  /* convert HMXB tables to log10 [GANE]*/
-  for (int i = 0; i < gane_feedback_HMXB_N_masses; i++) {
-    feedback_props->yield_HMXB.mass[i] =
-        log10(feedback_props->yield_HMXB.mass[i]);
-  }
-  for (int i = 0; i < gane_feedback_HMXB_N_metals; i++) {
-    if (feedback_props->yield_HMXB.metallicity[i] > 0) {
-      feedback_props->yield_HMXB.metallicity[i] =
-          log10(feedback_props->yield_HMXB.metallicity[i]);
-    } else {
-      feedback_props->yield_HMXB.metallicity[i] = log10_min_metallicity;
-    }
-  }
-
   /* Declare temporary tables to accumulate yields */
   double SNII_yield[eagle_feedback_SNII_N_masses];
   double AGB_yield[eagle_feedback_AGB_N_masses];
-  double HMXB_yield[eagle_feedback_HMXB_N_masses]; /*[GANE]*/
   float result;
 
   /* Resample yields for each element tracked in EAGLE */
@@ -1049,45 +828,6 @@ INLINE static void compute_yields(struct feedback_props *feedback_props) {
               exp(M_LN10 * feedback_props->yield_mass_bins[j]) * result;
         }
       }
-
-    /* HMXB [GANE] */
-    element_index = get_element_index(chemistry_get_element_name(elem),
-                                      feedback_props->HMXB_element_names,
-                                      gane_feedback_HMXB_N_elements);
-
-    if (element_index < 0) {
-      error("element not tracked for HMXB");
-    } else {
-      for (int i = 0; i < gane_feedback_HMXB_N_metals; i++) {
-        for (int j = 0; j < gane_feedback_HMXB_N_masses; j++) {
-          flat_index_3d = row_major_index_3d(
-              i, element_index, j, gane_feedback_HMXB_N_metals,
-              gane_feedback_HMXB_N_elements, gane_feedback_HMXB_N_masses);
-          HMXB_yield[j] = feedback_props->yield_HMXB.yield[flat_index_3d] *
-                         exp(M_LN10 * (-feedback_props->yield_HMXB.mass[j]));
-        }
-
-        for (int j = 0; j < eagle_feedback_N_imf_bins; j++) {
-          if (feedback_props->yield_mass_bins[j] <
-              feedback_props->yield_HMXB.mass[0])
-            result = HMXB_yield[0];
-          else if (feedback_props->yield_mass_bins[j] >
-                   feedback_props->yield_HMXB
-                       .mass[gane_feedback_HMXB_N_masses - 1])
-            result = HMXB_yield[gane_feedback_HMXB_N_masses - 1];
-          else
-            result = interpolate_1D_non_uniform(
-                feedback_props->yield_HMXB.mass, HMXB_yield,
-                gane_feedback_HMXB_N_masses,
-                feedback_props->yield_mass_bins[j]);
-
-          flat_index_3d = row_major_index_3d(
-              i, elem, j, gane_feedback_HMXB_N_metals, chemistry_element_count,
-              eagle_feedback_N_imf_bins);
-          feedback_props->yield_HMXB.yield_IMF_resampled[flat_index_3d] =
-              exp(M_LN10 * feedback_props->yield_mass_bins[j]) * result;
-        }
-      }
     }
   }
 }
@@ -1102,7 +842,6 @@ INLINE static void compute_ejecta(struct feedback_props *feedback_props) {
   /* Declare temporary tables to accumulate yields */
   double SNII_ejecta[eagle_feedback_SNII_N_masses];
   double AGB_ejecta[eagle_feedback_AGB_N_masses];
-  double HMXB_ejecta[gane_feedback_HMXB_N_masses]; /*[GANE]*/
   float result;
 
   int flat_index;
@@ -1216,61 +955,6 @@ INLINE static void compute_ejecta(struct feedback_props *feedback_props) {
       flat_index = row_major_index_2d(i, k, eagle_feedback_AGB_N_metals,
                                       eagle_feedback_N_imf_bins);
       feedback_props->yield_AGB.total_metals_IMF_resampled[flat_index] =
-          exp(M_LN10 * feedback_props->yield_mass_bins[k]) * result;
-    }
-  }
-
-  /* HMXB yields [GANE]*/
-  for (int i = 0; i < gane_feedback_HMXB_N_metals; i++) {
-    for (int k = 0; k < gane_feedback_HMXB_N_masses; k++) {
-      flat_index = row_major_index_2d(i, k, gane_feedback_HMXB_N_metals,
-                                      gane_feedback_HMXB_N_masses);
-      HMXB_ejecta[k] = feedback_props->yield_HMXB.ejecta[flat_index] /
-                      exp(M_LN10 * feedback_props->yield_HMXB.mass[k]);
-    }
-
-    for (int k = 0; k < eagle_feedback_N_imf_bins; k++) {
-      if (feedback_props->yield_mass_bins[k] <
-          feedback_props->yield_HMXB.mass[0])
-        result = HMXB_ejecta[0];
-      else if (feedback_props->yield_mass_bins[k] >
-               feedback_props->yield_HMXB.mass[gane_feedback_HMXB_N_masses - 1])
-        result = HMXB_ejecta[gane_feedback_HMXB_N_masses - 1];
-      else
-        result = interpolate_1D_non_uniform(
-            feedback_props->yield_HMXB.mass, HMXB_ejecta,
-            gane_feedback_HMXB_N_masses, feedback_props->yield_mass_bins[k]);
-
-      flat_index = row_major_index_2d(i, k, gane_feedback_HMXB_N_metals,
-                                      eagle_feedback_N_imf_bins);
-      feedback_props->yield_HMXB.ejecta_IMF_resampled[flat_index] =
-          exp(M_LN10 * feedback_props->yield_mass_bins[k]) * result;
-    }
-  }
-
-  for (int i = 0; i < gane_feedback_HMXB_N_metals; i++) {
-    for (int k = 0; k < gane_feedback_HMXB_N_masses; k++) {
-      flat_index = row_major_index_2d(i, k, gane_feedback_HMXB_N_metals,
-                                      gane_feedback_HMXB_N_masses);
-      HMXB_ejecta[k] = feedback_props->yield_HMXB.total_metals[flat_index] *
-                      exp(M_LN10 * (-feedback_props->yield_HMXB.mass[k]));
-    }
-
-    for (int k = 0; k < eagle_feedback_N_imf_bins; k++) {
-      if (feedback_props->yield_mass_bins[k] <
-          feedback_props->yield_HMXB.mass[0])
-        result = HMXB_ejecta[0];
-      else if (feedback_props->yield_mass_bins[k] >
-               feedback_props->yield_HMXB.mass[gane_feedback_HMXB_N_masses - 1])
-        result = HMXB_ejecta[gane_feedback_HMXB_N_masses - 1];
-      else
-        result = interpolate_1D_non_uniform(
-            feedback_props->yield_HMXB.mass, HMXB_ejecta,
-            gane_feedback_HMXB_N_masses, feedback_props->yield_mass_bins[k]);
-
-      flat_index = row_major_index_2d(i, k, gane_feedback_HMXB_N_metals,
-                                      eagle_feedback_N_imf_bins);
-      feedback_props->yield_HMXB.total_metals_IMF_resampled[flat_index] =
           exp(M_LN10 * feedback_props->yield_mass_bins[k]) * result;
     }
   }

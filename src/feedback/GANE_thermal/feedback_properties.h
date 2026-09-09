@@ -128,6 +128,9 @@ struct feedback_props {
   /*! Are we doing SNIa feedback? */
   int with_SNIa_feedback;
 
+  /*! Are we doing HMXB feedback? [GANE] */
+  int with_HMXB_feedback;
+
   /* ------------ Yield tables    ----------------- */
 
   /* Yield tables for AGB and SNII  */
@@ -192,6 +195,13 @@ struct feedback_props {
 
   /*! Specific kinetic energy injected from AGB ejectas (in internal units). */
   float AGB_ejecta_specific_kinetic_energy;
+
+  /* ------------- HMXB parameters [GANE] ---------------- */
+
+  /*! Energy fraction for HMXB feedback */
+  float f_E_HMXB;
+
+  /*! Otros parámetros propios del modelo de Leo */
 
   /* ------------- Conversion factors --------------- */
 

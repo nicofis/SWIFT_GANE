@@ -118,6 +118,12 @@ struct feedback_spart_data {
       /*! Change in energy from SNII feedback energy injection */
       float SNII_delta_u;
 
+      /*! Number of HMXB energy injections in thermal form [GANE] */
+      int HMXB_num_of_thermal_energy_inj;
+
+      /*! Change in energy from HMXB feedback energy injection [GANE] */
+      float HMXB_delta_u;
+
     } to_distribute;
   };
 

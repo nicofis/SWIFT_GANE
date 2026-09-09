@@ -154,6 +154,12 @@ __attribute__((always_inline)) INLINE static void feedback_reset_feedback(
 
   /* Zero the SNII feedback properties */
   sp->feedback_data.to_distribute.SNII_num_of_thermal_energy_inj = 0;
+
+    /* Zero the HMXB feedback energy [GANE] */
+  sp->feedback_data.to_distribute.HMXB_delta_u = 0.f;
+
+  /* Zero the HMXB feedback properties [GANE] */
+  sp->feedback_data.to_distribute.HMXB_num_of_thermal_energy_inj = 0;
 }
 
 /**
