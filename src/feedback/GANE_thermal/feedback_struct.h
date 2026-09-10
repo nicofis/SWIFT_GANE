@@ -16,8 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  ******************************************************************************/
-#ifndef SWIFT_FEEDBACK_STRUCT_EAGLE_THERMAL_H
-#define SWIFT_FEEDBACK_STRUCT_EAGLE_THERMAL_H
+#ifndef SWIFT_FEEDBACK_STRUCT_GANE_THERMAL_H
+#define SWIFT_FEEDBACK_STRUCT_GANE_THERMAL_H
 
 #include "chemistry_struct.h"
 #include "rays_struct.h"
@@ -127,8 +127,8 @@ struct feedback_spart_data {
     } to_distribute;
   };
 
-  /* Instantiate ray structs for SNII isotropic feedback  */
+  /* Instantiate ray structs for SNII [and HMXB ]isotropic feedback  */
   struct ray_data SNII_rays[eagle_SNII_feedback_num_of_rays];
 };
 
-#endif /* SWIFT_FEEDBACK_STRUCT_EAGLE_THERMAL_H */
+#endif /* SWIFT_FEEDBACK_STRUCT_GANE_THERMAL_H */

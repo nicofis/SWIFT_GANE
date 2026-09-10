@@ -21,8 +21,9 @@
 #include "feedback.h"
 
 /* Local includes. */
-#include "../EAGLE/enrichment.h"
-#include "../EAGLE/yield_tables.h"
+#include "../GANE/enrichment.h"
+#include "../GANE/yield_tables.h"
+#include "../GANE/hmxb_tables.h"
 #include "hydro_properties.h"
 #include "inline.h"
 #include "random.h"
@@ -262,11 +263,9 @@ INLINE static void compute_SNII_feedback(
 double gane_feedback_energy_change(const struct spart *sp,
                                    const struct feedback_props *props) {
 
-  /* GANE MODEL */
-  double dE_dt = ; // Aquí iría la expresión para dE_dt(t,Z)
-  double delta_E = dE_dt * sp->dt_star; // ARREGLAR dt_star para que sea el timestep
-  // /* In the EAGLE REF model, the change of temperature is constant */
-  // return props->SNII_deltaT_desired;
+  const double t_start = star_age
+  delta_E = feedback_props->HMXB_energies.energy[i][j]
+  return delta_E
 }
 
 /**
@@ -345,8 +344,8 @@ double gane_feedback_energy_fraction(const struct spart *sp,
 }
 
 /**
- * @brief Compute the properties of the HMXB feedback energy injection.
- *
+ * @brief Compute the properties of the HMXB feedback energy injection. [GANE]
+ * (TERMINAR DE CORREGIR)
  * Only does something if the particle reached the HMXB active age during this time
  * step.
  *
@@ -374,32 +373,16 @@ INLINE static void compute_HMXB_feedback(
     const double min_dying_mass_Msun, const double max_dying_mass_Msun,
     const integertime_t ti_begin) {
 
-  /* DEFINIR SI HAY DELAY */
-  /* Are we sampling the delay function or using a fixed delay? */
-  const int HMXB_sampled_delay = feedback_props->HMXB_sampled_delay;
-
-  /* Time after birth considered for HMXB feedback (internal units)
-   * when using a fixed delay */
-  const double HMXB_wind_delay = feedback_props->HMXB_wind_delay;
-
-  /* Are we doing feedback this step?
-   * Note that since the ages are calculated using an interpolation table we
-   * must allow some tolerance here*/
-  if ((HMXB_sampled_delay) || (star_age <= HMXB_wind_delay &&
-                               (star_age + 1.001 * dt) > HMXB_wind_delay)) {
-
-    /* Make sure a star does not do feedback twice
-     * when using a fixed delay! */
-    if (!HMXB_sampled_delay && sp->f_E != -1.f) {
-#ifdef SWIFT_DEBUG_CHECKS
-      message("Star has already done feedback! sp->id=%lld age=%e d=%e", sp->id,
-              star_age, dt);
-#endif
-      return;
-    }
-
     /* Properties of the model (all in internal units) */
     /* GANE */
+    /* Metallicity (metal mass fraction) at birth time of the star */
+    const double Z_birth =
+        chemistry_get_star_total_metal_mass_fraction_for_feedback(sp);
+    const double t_start = star_age
+    const double t_end = star_age + dt
+    
+    const double dx
+
     const double delta_E =
         gane_feedback_energy_change(sp, feedback_props);
     const double E_HMXB = feedback_props->E_HMXB; // CREO QUE ES INNECESARIA EN ESTE MODELO

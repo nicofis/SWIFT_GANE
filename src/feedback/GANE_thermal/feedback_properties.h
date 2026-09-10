@@ -16,8 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  ******************************************************************************/
-#ifndef SWIFT_EAGLE_FEEDBACK_PROPERTIES_THERMAL_H
-#define SWIFT_EAGLE_FEEDBACK_PROPERTIES_THERMAL_H
+#ifndef SWIFT_GANE_FEEDBACK_PROPERTIES_THERMAL_H
+#define SWIFT_GANE_FEEDBACK_PROPERTIES_THERMAL_H
 
 /* Config parameters. */
 #include <config.h>
@@ -107,7 +107,22 @@ enum eagle_feedback_SNIa_DTD {
 };
 
 /**
- * @brief Properties of the EAGLE feedback model.
+ * @brief Stores tables to determine HMXB feedback energies [GANE].
+ */
+struct HMXB_table {
+
+  /* table of metallicities */
+  double *metallicity;
+
+  /* table of ages */
+  double *age;
+
+  /* table of energies depending on ages and metallicity */
+  double **energy;
+};
+
+/**
+ * @brief Properties of the GANE feedback model.
  */
 struct feedback_props {
 
@@ -157,6 +172,14 @@ struct feedback_props {
 
   /* Table of lifetime values */
   struct lifetime_table lifetimes;
+
+  /* ------------- HMXB feedback energy table [GANE] --------------- */
+
+  /* Table of HMXB feedback energy values */
+  struct HMXB_table HMXB_energies;
+
+  /* Location of HMXB tables */
+  char HMXB_energy_table_path[200];
 
   /* ------------- SNII parameters    --------------- */
 
@@ -332,4 +355,4 @@ void feedback_props_init(struct feedback_props *fp,
                          const struct hydro_props *hydro_props,
                          const struct cosmology *cosmo);
 
-#endif /* SWIFT_EAGLE_FEEDBACK_PROPERTIES_THERMAL_H */
+#endif /* SWIFT_GANE_FEEDBACK_PROPERTIES_THERMAL_H */

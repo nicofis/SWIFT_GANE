@@ -16,8 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  ******************************************************************************/
-#ifndef SWIFT_EAGLE_FEEDBACK_IACT_THERMAL_H
-#define SWIFT_EAGLE_FEEDBACK_IACT_THERMAL_H
+#ifndef SWIFT_GANE_FEEDBACK_IACT_THERMAL_H
+#define SWIFT_GANE_FEEDBACK_IACT_THERMAL_H
 
 /* Local includes */
 #include "feedback.h"
@@ -384,7 +384,7 @@ runner_iact_nonsym_feedback_apply(
   hydro_set_drifted_physical_internal_energy(pj, cosmo, /*pfloor=*/NULL,
                                              u_new_enrich);
 
-  /* Finally, SNII stochastic feedback */
+  /* SNII stochastic feedback */
 
   /* Get the total number of SNII thermal energy injections per stellar
    * particle at this time-step */
@@ -446,7 +446,7 @@ runner_iact_nonsym_feedback_apply(
 
     /* Find out how many rays this gas particle has received. */
     for (int i = 0; i < N_of_HMXB_thermal_energy_inj; i++) {
-      if (pj->id == si->feedback_data.SNII_rays[i].id_min_length) /* Nos acoplamos al SNII_rays o generamos otro set de rayos para HMXB?*/
+      if (pj->id == si->feedback_data.SNII_rays[i].id_min_length) /* Nos acoplamos al SNII_rays */
         N_of_HMXB_energy_inj_received_by_gas++;
     }
 
@@ -481,4 +481,4 @@ runner_iact_nonsym_feedback_apply(
   }
 }
 
-#endif /* SWIFT_EAGLE_FEEDBACK_IACT_THERMAL_H */
+#endif /* SWIFT_GANE_FEEDBACK_IACT_THERMAL_H */
