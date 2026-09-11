@@ -197,6 +197,17 @@ INLINE static void stars_write_particles(const struct spart *sparts,
       number_of_SNII_events,
       "Number of SNII energy injection events the stars went through.");
 
+  /* [GANE] */
+  list[7] = io_make_output_field(
+      "FeedbackHMXBEnergyFractions", FLOAT, 1, UNIT_CONV_NO_UNITS, 0.f, sparts, f_E_HMXB,
+      "Fractions of the canonical feedback energy that was used for the stars' "
+      "HMXB feedback events");
+
+  list[8] = io_make_output_field(
+      "NumberOfHMXBFeedbackEvents", INT, 1, UNIT_CONV_NO_UNITS, 0.f, sparts,
+      number_of_HMXB_events,
+      "Number of HMXB energy injection events the stars went through.");
+
   list[9] = io_make_physical_output_field(
       "BirthDensities", FLOAT, 1, UNIT_CONV_DENSITY, -3.f, sparts,
       birth_density, /*can convert to comoving=*/0,

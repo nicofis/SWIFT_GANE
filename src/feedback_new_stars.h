@@ -34,6 +34,9 @@
 #define feedback_use_newborn_stars 1
 #elif defined(FEEDBACK_AGORA)
 #define feedback_use_newborn_stars 1
+/* [GANE] */
+#elif defined(FEEDBACK_GANE_THERMAL)
+#define feedback_use_newborn_stars 0 // DEFINIR
 #else
 #error "Invalid choice of feedback model"
 #endif

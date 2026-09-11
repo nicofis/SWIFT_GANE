@@ -34,6 +34,9 @@
 #include "./feedback/GEAR_thermal/feedback.h"
 #elif defined(FEEDBACK_AGORA)
 #include "./feedback/AGORA/feedback.h"
+/* [GANE] */
+#elif defined(FEEDBACK_GANE_THERMAL)
+#include "./feedback/GANE_thermal/feedback.h"
 #else
 #error "Invalid choice of feedback model"
 #endif

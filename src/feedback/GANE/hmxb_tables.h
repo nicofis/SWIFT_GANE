@@ -150,29 +150,39 @@ INLINE static void allocate_HMXB_tables(
  * @param Z_birth #spart's metallicity at birth.
  * @param feedback_props the properties of the feedback model.
  */
-INLINE static void interpolate_HMXB_energy(
+INLINE static double interpolate_HMXB_energy(
   const double star_age, const double Z_birth,
   const struct feedback_props *feedback_props) {
   
-  const struct HMXB_table = feedback_props->HMXB_energies
+  /* Get table */
+  const struct HMXB_table *HMXB_table = &feedback_props->HMXB_energies;
+  
   /* Find closest cells in HMXB table to (star_age, Z_birth) */
   
   /* Find age cells */
-  const int age_index = sizeof(struct (HMXB_table.age < star_age) == 1)
-  const double age_1 = HMXB_table.age[age_index]
-  const double age_2 = HMXB_table.age[age_index + 1]
+  int i;
+  for (i=0; i < gane_feedback_HMXB_N_ages - 1 && HMXB_table->age[i] <= star_age; i++) {
+    continue;
+  }
+  const int age_index = i - 1;
+  const double age_1 = HMXB_table->age[age_index];
+  const double age_2 = HMXB_table->age[age_index + 1];
 
-  /* Find metallicity */
-  const int Z_index = sizeof(struct (HMXB_table.metallicity < Z_birth) == 1)
-  const double Z_1 = HMXB_table.age[Z_index]
-  const double Z_2 = HMXB_table.age[Z_index + 1]
+  /* Find metallicity cells */
+  int j;
+  for (j=0; j < gane_feedback_HMXB_N_metals - 1 && HMXB_table->metallicity[j] <= Z_birth; j++) {
+    continue;
+  }
+  const int Z_index = j - 1;
+  const double Z_1 = HMXB_table->metallicity[Z_index];
+  const double Z_2 = HMXB_table->metallicity[Z_index + 1];
   
   /* Normalize cell's age and metallicity locations */
-  const double d_age = (star_age - age_1) / (age_2 - age_1)
-  const double d_Z = (Z_birth - Z_1) / (Z_2 - Z_1)
+  const float d_age = (float)((star_age - age_1) / (age_2 - age_1));
+  const float d_Z = (float)((Z_birth - Z_1) / (Z_2 - Z_1));
 
   /* Interpolate to obtain energy */
-  const double E = interpolate_2d(HMXB_table, age_index, Z_index, d_age, d_Z)
+  const double E = interpolate_2d(HMXB_table->energy, age_index, Z_index, d_age, d_Z);
 
   return E;
   }

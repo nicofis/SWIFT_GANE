@@ -91,8 +91,14 @@ struct spart {
   /*! Total number of SNII injection events this star performed */
   int number_of_SNII_events;
 
-  /*! Feedback energy fraction */
+  /*! SNII Feedback energy fraction */
   float f_E;
+
+  /*! Total number of HMXB injection events this star performed [GANE] */
+  int number_of_HMXB_events;
+
+  /*! HMXB Feedback energy fraction [GANE] */
+  float f_E_HMXB;
 
   /*! The physical birth density */
   float birth_density;

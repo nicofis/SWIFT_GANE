@@ -38,6 +38,9 @@
 #include "./feedback/GEAR_thermal/feedback_struct.h"
 #elif defined(FEEDBACK_AGORA)
 #include "./feedback/AGORA/feedback_struct.h"
+/* [GANE] */
+#elif defined(FEEDBACK_GANE_THERMAL)
+#include "./feedback/GANE_thermal/feedback_struct.h"
 #else
 #error "Invalid choice of feedback function."
 #endif
