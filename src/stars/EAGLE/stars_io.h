@@ -147,7 +147,7 @@ INLINE static void stars_write_particles(const struct spart *sparts,
                                          struct io_props *list, int *num_fields,
                                          const int with_cosmology) {
   /* Say how much we want to write */
-  *num_fields = 14;
+  *num_fields = 16;
 
   /* List what we want to write */
   list[0] = io_make_output_field_convert_spart(
@@ -198,35 +198,35 @@ INLINE static void stars_write_particles(const struct spart *sparts,
       "Number of SNII energy injection events the stars went through.");
 
   /* [GANE] */
-  list[7] = io_make_output_field(
+  list[9] = io_make_output_field(
       "FeedbackHMXBEnergyFractions", FLOAT, 1, UNIT_CONV_NO_UNITS, 0.f, sparts, f_E_HMXB,
       "Fractions of the canonical feedback energy that was used for the stars' "
       "HMXB feedback events");
 
-  list[8] = io_make_output_field(
+  list[10] = io_make_output_field(
       "NumberOfHMXBFeedbackEvents", INT, 1, UNIT_CONV_NO_UNITS, 0.f, sparts,
       number_of_HMXB_events,
       "Number of HMXB energy injection events the stars went through.");
 
-  list[9] = io_make_physical_output_field(
+  list[11] = io_make_physical_output_field(
       "BirthDensities", FLOAT, 1, UNIT_CONV_DENSITY, -3.f, sparts,
       birth_density, /*can convert to comoving=*/0,
       "Physical densities at the time of birth of the gas particles that "
       "turned into stars (note that we store the physical density at the birth "
       "redshift, no conversion is needed)");
 
-  list[10] = io_make_physical_output_field(
+  list[12] = io_make_physical_output_field(
       "BirthTemperatures", FLOAT, 1, UNIT_CONV_TEMPERATURE, 0.f, sparts,
       birth_temperature, /*can convert to comoving=*/0,
       "Temperatures at the time of birth of the gas "
       "particles that turned into stars");
 
-  list[11] = io_make_output_field(
+  list[13] = io_make_output_field(
       "FeedbackNumberOfHeatingEvents", FLOAT, 1, UNIT_CONV_NO_UNITS, 0.f,
       sparts, number_of_heating_events,
       "Expected number of particles that were heated by each star particle.");
 
-  list[12] = io_make_output_field_convert_spart(
+  list[14] = io_make_output_field_convert_spart(
       "Luminosities", FLOAT, luminosity_bands_count, UNIT_CONV_NO_UNITS, 0.f,
       sparts, convert_spart_luminosities,
       "Rest-frame dust-free AB-luminosities of the star particles in the GAMA "
@@ -238,7 +238,7 @@ INLINE static void stars_write_particles(const struct spart *sparts,
       "absolute AB-magnitudes (rest-frame absolute maggies) directly by "
       "applying -2.5 log10(L) without additional corrections.");
 
-  list[13] = io_make_output_field_convert_spart(
+  list[15] = io_make_output_field_convert_spart(
       "Potentials", FLOAT, 1, UNIT_CONV_POTENTIAL, -1.f, sparts,
       convert_spart_potential, "Gravitational potentials of the particles");
 }

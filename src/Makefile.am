@@ -124,6 +124,12 @@ if HAVEEAGLEKINETICFEEDBACK
 EAGLE_FEEDBACK_SOURCES += feedback/EAGLE_kinetic/feedback.c
 endif
 
+# source files for GANE feedback
+GANE_FEEDBACK_SOURCES =
+if HAVEGANETHERMALFEEDBACK
+GANE_FEEDBACK_SOURCES += feedback/GANE_thermal/feedback.c
+endif
+
 # source files for GRACKLE cooling
 GRACKLE_COOLING_SOURCES =
 if HAVEGRACKLECOOLING
@@ -217,6 +223,7 @@ AM_SOURCES += $(EAGLE_COOLING_SOURCES) $(EAGLE_FEEDBACK_SOURCES)
 AM_SOURCES += $(GRACKLE_COOLING_SOURCES) $(GEAR_FEEDBACK_SOURCES)
 AM_SOURCES += $(EAGLE_FLOOR_SOURCES)
 AM_SOURCES += $(AGORA_FEEDBACK_SOURCES)
+AM_SOURCES += $(GANE_FEEDBACK_SOURCES)
 AM_SOURCES += $(PS2020_COOLING_SOURCES)
 AM_SOURCES += $(SPHM1RT_RT_SOURCES)
 AM_SOURCES += $(GEAR_RT_SOURCES)
@@ -495,6 +502,11 @@ nobase_noinst_HEADERS += feedback/GEAR/feedback_common.h feedback/GEAR/stellar_w
 nobase_noinst_HEADERS += feedback/GEAR_thermal/feedback.h feedback/GEAR_thermal/feedback_iact.h
 nobase_noinst_HEADERS += feedback/GEAR_thermal/feedback_properties.h feedback/GEAR_thermal/feedback_struct.h
 nobase_noinst_HEADERS += feedback/GEAR_thermal/feedback_debug.h
+nobase_noinst_HEADERS += feedback/GANE_thermal/feedback.h feedback/GANE_thermal/feedback_struct.h
+nobase_noinst_HEADERS += feedback/GANE_thermal/feedback_properties.h feedback/GANE_thermal/feedback_iact.h
+nobase_noinst_HEADERS += feedback/GANE_thermal/feedback_debug.h
+nobase_noinst_HEADERS += feedback/GANE/yield_tables.h feedback/GANE/imf.h feedback/GANE/interpolate.h
+nobase_noinst_HEADERS += feedback/GANE/enrichment.h feedback/GANE/hmxb_tables.h
 nobase_noinst_HEADERS += black_holes/Default/black_holes.h black_holes/Default/black_holes_io.h
 nobase_noinst_HEADERS += black_holes/Default/black_holes_part.h black_holes/Default/black_holes_iact.h
 nobase_noinst_HEADERS += black_holes/Default/black_holes_properties.h

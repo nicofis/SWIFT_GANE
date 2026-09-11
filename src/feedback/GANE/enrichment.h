@@ -664,6 +664,24 @@ INLINE static void evolve_AGB(const double log10_min_mass,
 }
 
 /**
+ * @brief Zero pointers in yield_table structs
+ *
+ * @param table yield_table struct in which pointers to tables
+ * set to NULL
+ */
+void zero_yield_table_pointers(struct yield_table *table) {
+
+  table->mass = NULL;
+  table->metallicity = NULL;
+  table->yield_IMF_resampled = NULL;
+  table->yield = NULL;
+  table->ejecta_IMF_resampled = NULL;
+  table->ejecta = NULL;
+  table->total_metals_IMF_resampled = NULL;
+  table->total_metals = NULL;
+}
+
+/**
  * @brief Restore feedback tables (if applicable) after
  * restart
  *

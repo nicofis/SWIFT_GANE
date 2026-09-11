@@ -179,7 +179,7 @@ struct feedback_props {
   struct HMXB_table HMXB_energies;
 
   /* Location of HMXB tables */
-  char HMXB_energy_table_path[200];
+  char HMXB_table_path[200];
 
   /* ------------- SNII parameters    --------------- */
 

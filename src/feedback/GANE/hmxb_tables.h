@@ -45,7 +45,7 @@ INLINE static void read_HMXB_tables(struct feedback_props *feedback_props) {
   herr_t status;
 
   /* Open HMXB tables for reading */
-  sprintf(fname, "%s/HMXB.hdf5", feedback_props->HMXB_energy_table_path);
+  sprintf(fname, "%s/HMXB.hdf5", feedback_props->HMXB_table_path);
   file_id = H5Fopen(fname, H5F_ACC_RDONLY, H5P_DEFAULT);
   if (file_id < 0) error("unable to open file %s\n", fname);
 

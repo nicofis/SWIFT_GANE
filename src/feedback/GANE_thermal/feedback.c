@@ -438,7 +438,7 @@ void compute_stellar_evolution(const struct feedback_props *feedback_props,
 
   /* Compute properties of the HMXB feedback model [GANE] */
   if (feedback_props->with_HMXB_feedback) {
-    compute_HMXB_feedback(sp, age, dt, feedback_props);
+    compute_HMXB_feedback(sp, age, dt, ngb_gas_mass, feedback_props);
   }
 
   /* Compute elements, energy and momentum to distribute from the
@@ -932,10 +932,9 @@ void feedback_struct_dump(const struct feedback_props *feedback, FILE *stream) {
      the first call to the feedback routines. Helps debugging. */
   struct feedback_props feedback_copy = *feedback;
 
-  /* zero AGB, SNII and HMXB table pointers */
+  /* zero AGB and SNII table pointers */
   zero_yield_table_pointers(&feedback_copy.yield_AGB);
   zero_yield_table_pointers(&feedback_copy.yield_SNII);
-  zero_yield_table_pointers(&feedback_copy.HMXB_energies); // [GANE]
 
   /* zero SNIa table pointers */
   feedback_copy.yield_SNIa_IMF_resampled = NULL;
