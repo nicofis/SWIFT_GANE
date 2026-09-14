@@ -22,11 +22,11 @@
 /* Local includes. */
 #include "inline.h"
 
-/*! Number of metallicity bins considered for the HMXB feedback */
-#define gane_feedback_HMXB_N_metals ?
+/*! Number of metallicity tables considered for the HMXB feedback */
+#define gane_feedback_HMXB_N_metals 4
 
 /*! Number of age bins considered for the HMXB feedback */
-#define gane_feedback_HMXB_N_ages ?
+#define gane_feedback_HMXB_N_ages 1000
 
 /**
  * @brief reads HMXB energy tables and stores them in stars_props data
@@ -73,9 +73,9 @@ INLINE static void read_HMXB_tables(struct feedback_props *feedback_props) {
 
   /* read HMXB energy tables */
 
-  /* Temporary array with identical static dimensions, exactly like lifetimes */
-  double temp_energy[gane_feedback_HMXB_N_ages]
-                         [gane_feedback_HMXB_N_metals];
+  /* allocate temporary array to read energies */
+  double temp_energy[gane_feedback_HMXB_N_metals]
+                    [gane_feedback_HMXB_N_ages];
 
   dataset = H5Dopen(file_id, "Energy", H5P_DEFAULT);
   if (dataset < 0) error("error opening HMXB Energy dataset");
@@ -88,8 +88,8 @@ INLINE static void read_HMXB_tables(struct feedback_props *feedback_props) {
   if (status < 0) error("error closing Energy dataset");
 
   /* Copy from temporary array to final destination struct */
-  for (int i = 0; i < gane_feedback_HMXB_N_ages; i++) {
-    for (int j = 0; j < gane_feedback_HMXB_N_metals; j++) {
+  for (int i = 0; i < gane_feedback_HMXB_N_metals; i++) {
+    for (int j = 0; j < gane_feedback_HMXB_N_ages; j++) {
       feedback_props->HMXB_energies.energy[i][j] = temp_energy[i][j];
     }
   }
@@ -117,7 +117,7 @@ INLINE static void allocate_HMXB_tables(
     error("Failed to allocate HMXB metallicity array");
   }
 
-  /* Allocate array for HMXB age bins */
+  /* Allocate array for HMXB ages bins */
   if (swift_memalign("feedback-tables",
                      (void **)&feedback_props->HMXB_energies.age,
                      SWIFT_STRUCT_ALIGNMENT,
@@ -125,26 +125,18 @@ INLINE static void allocate_HMXB_tables(
     error("Failed to allocate HMXB age array");
   }
 
-  /* Allocate 2D energy table: rows (ages) and columns (metals) */
+  /* Allocate HMXB array */
   feedback_props->HMXB_energies.energy =
-      (double **)malloc(gane_feedback_HMXB_N_ages * sizeof(double *));
-  if (feedback_props->HMXB_energies.energy == NULL) {
-    error("Failed to allocate HMXB energy row pointers");
-  }
-
-  for (int i = 0; i < gane_feedback_HMXB_N_ages; i++) {
-    if (swift_memalign("feedback-tables",
-                       (void **)&feedback_props->HMXB_energies.energy[i],
-                       SWIFT_STRUCT_ALIGNMENT,
-                       gane_feedback_HMXB_N_metals * sizeof(double)) != 0) {
-      error("Failed to allocate HMXB energy column array");
-    }
+      (double **)malloc(gane_feedback_HMXB_N_metals * sizeof(double *));
+  for (int i = 0; i < gane_feedback_HMXB_N_metals; i++) {
+    feedback_props->HMXB_energies.energy[i] =
+        (double *)malloc(gane_feedback_HMXB_N_ages * sizeof(double));
   }
 }
 
 /**
- * @brief Interpolating function for HMXB tables. Returns interpolated energy
- * given the #spart's age and metallicity. (REVISAR)
+ * @brief Interpolating function for HMXB tables. Returns interpolated energy per unit #spart's mass
+ * given the #spart's age and metallicity.
  * 
  * @param star_age age of the #spart.
  * @param Z_birth #spart's metallicity at birth.
@@ -157,32 +149,46 @@ INLINE static double interpolate_HMXB_energy(
   /* Get table */
   const struct HMXB_table *HMXB_table = &feedback_props->HMXB_energies;
   
-  /* Find closest cells in HMXB table to (star_age, Z_birth) */
-  
-  /* Find age cells */
+  /* Find closests metallicities to Z_birth in HMXB tables */
   int i;
-  for (i=0; i < gane_feedback_HMXB_N_ages - 1 && HMXB_table->age[i] <= star_age; i++) {
+  for (i=0; i < gane_feedback_HMXB_N_metals - 1 && HMXB_table->metallicity[i] <= Z_birth; i++) {
     continue;
   }
-  const int age_index = i - 1;
-  const double age_1 = HMXB_table->age[age_index];
-  const double age_2 = HMXB_table->age[age_index + 1];
+  i--;
 
-  /* Find metallicity cells */
+  /* Find age cells */
   int j;
-  for (j=0; j < gane_feedback_HMXB_N_metals - 1 && HMXB_table->metallicity[j] <= Z_birth; j++) {
+  for (j=0; j < gane_feedback_HMXB_N_ages - 1 && HMXB_table->age[j] <= star_age; j++) {
     continue;
   }
-  const int Z_index = j - 1;
-  const double Z_1 = HMXB_table->metallicity[Z_index];
-  const double Z_2 = HMXB_table->metallicity[Z_index + 1];
-  
-  /* Normalize cell's age and metallicity locations */
-  const float d_age = (float)((star_age - age_1) / (age_2 - age_1));
-  const float d_Z = (float)((Z_birth - Z_1) / (Z_2 - Z_1));
+  j--;
+  const double age_1 = HMXB_table->age[j];
+  const double age_2 = HMXB_table->age[j + 1];
 
-  /* Interpolate to obtain energy */
-  const double E = interpolate_2d(HMXB_table->energy, age_index, Z_index, d_age, d_Z);
+  /* Normalize cell's age locations */
+  const float d_age = (float)((star_age - age_1) / (age_2 - age_1));
+
+  double E;
+  if (i < 0) {
+    /* Only interpolate in the first table */
+    E = interpolate_1d(HMXB_table->energy[0], j, d_age);
+  }
+  else {
+    /* Interpolate energies from tables with indexes i and i + 1 using the two closest 
+    cells to star_age: */
+
+    /* Interpolate Z_1 table to obtain energy */
+    const double E_1 = interpolate_1d(HMXB_table->energy[i], j, d_age);
+
+    /* Interpolate Z_2 table to obtain energy */
+    const double E_2 = interpolate_1d(HMXB_table->energy[i + 1], j, d_age);
+
+    /* Interpolate energy at Z_birth using energies E_1 and E_2 */
+    const double Z_1 = HMXB_table->metallicity[i];
+    const double Z_2 = HMXB_table->metallicity[i + 1];
+    const float d_Z = (float)((Z_birth - Z_1) / (Z_2 - Z_1));
+    E = (E_2 - E_1) * d_Z + E_1;
+  }
 
   return E;
   }

@@ -291,12 +291,10 @@ INLINE static void compute_HMXB_feedback(
   /* Get metallicity (metal mass fraction) at birth time of the star */
   const double Z_birth =
       chemistry_get_star_total_metal_mass_fraction_for_feedback(sp);
-  // const double t_start = star_age
-  // const double t_end = star_age + dt
   
   const double E_start = interpolate_HMXB_energy(star_age, Z_birth, feedback_props);
   const double E_end = interpolate_HMXB_energy(star_age + dt, Z_birth, feedback_props);
-  const double delta_E = E_end - E_start;
+  const double delta_E = (E_end - E_start) * sp->mass_init;
   const double f_E_HMXB =
       gane_feedback_energy_fraction(sp, feedback_props);
 
