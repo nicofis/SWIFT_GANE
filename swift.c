@@ -210,6 +210,7 @@ int main(int argc, char *argv[]) {
   int with_flamingo = 0;
   int with_gear = 0;
   int with_agora = 0;
+  int with_gane = 0; // [GANE]
   int with_line_of_sight = 0;
   int with_rt = 0;
   int with_power = 0;
