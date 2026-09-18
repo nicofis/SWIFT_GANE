@@ -2164,7 +2164,7 @@ case "$with_subgrid" in
         enable_fof=yes
    ;;
    GANE_EAGLE)
-	with_subgrid_cooling=EAGLE
+	with_subgrid_cooling=PS2020
 	with_subgrid_chemistry=EAGLE
 	with_subgrid_tracers=EAGLE
 	with_subgrid_entropy_floor=EAGLE
