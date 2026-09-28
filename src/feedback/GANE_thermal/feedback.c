@@ -294,7 +294,7 @@ INLINE static void compute_HMXB_feedback(
   
   const double E_start = interpolate_HMXB_energy(star_age, Z_birth, feedback_props);
   const double E_end = interpolate_HMXB_energy(star_age + dt, Z_birth, feedback_props);
-  const double delta_E = (E_end - E_start) * sp->mass_init;
+  const double delta_E = (E_end - E_start) * 1e-7 * sp->mass_init; // El factor 1e-7 es para que E sea por unidad de masa, falta arreglar
   const double f_E_HMXB =
       gane_feedback_energy_fraction(sp, feedback_props);
 
