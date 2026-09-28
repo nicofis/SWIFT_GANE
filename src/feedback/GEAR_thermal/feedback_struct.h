@@ -39,6 +39,9 @@ struct feedback_xpart_data {
   /*! Momemtum received from a supernovae */
   float delta_p[3];
 
+  /*! specific energy received from HMXB */
+  float delta_u_HMXB;
+
   /*! Indicator if the particle receives energy from SN specifically */
   char hit_by_SN;
 
