@@ -23,10 +23,10 @@
 #include "inline.h"
 
 /*! Number of metallicity tables considered for the HMXB feedback */
-#define gane_feedback_HMXB_N_metals 4
+#define gane_feedback_HMXB_N_metals 41
 
 /*! Number of age bins considered for the HMXB feedback */
-#define gane_feedback_HMXB_N_ages 1000
+#define gane_feedback_HMXB_N_ages 51
 
 /**
  * @brief reads HMXB energy tables and stores them in stars_props data
