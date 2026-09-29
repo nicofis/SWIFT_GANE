@@ -100,6 +100,10 @@ struct spart {
   /*! HMXB Feedback energy fraction [GANE] */
   float f_E_HMXB;
 
+  /*! Cumulative energy ejected via HMXB thermal feedback since birth,
+   *  in internal units [GANE] */
+  float cumulative_HMXB_energy_ejected;
+
   /*! The physical birth density */
   float birth_density;
 

@@ -149,6 +149,7 @@ __attribute__((always_inline)) INLINE static void stars_first_init_spart(
   sp->number_of_heating_events = 0.;
   sp->number_of_SNII_events = 0;
   sp->number_of_HMXB_events = 0; // [GANE]
+  sp->cumulative_HMXB_energy_ejected = 0.f; // [GANE]
 
   if (stars_properties->overwrite_birth_time)
     sp->birth_time = stars_properties->spart_first_init_birth_time;

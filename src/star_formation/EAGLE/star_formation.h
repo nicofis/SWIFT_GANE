@@ -646,11 +646,13 @@ INLINE static void star_formation_copy_properties(
 
   /* Flag that this particle has not done feedback yet */
   sp->f_E = -1.f;
+  sp->f_E_HMXB = -1.f;
   sp->number_of_SNII_events = 0;
   sp->number_of_HMXB_events = 0; // [GANE]
   sp->last_enrichment_time = sp->birth_time;
   sp->count_since_last_enrichment = -1;
   sp->number_of_heating_events = 0.;
+  sp->cumulative_HMXB_energy_ejected = 0.f; // [GANE]
 
   /* If we are spawning more than 1 star per gas particle --> add some small
    * displacement */

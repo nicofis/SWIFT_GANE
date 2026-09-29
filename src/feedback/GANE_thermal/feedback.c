@@ -298,6 +298,9 @@ INLINE static void compute_HMXB_feedback(
   const double f_E_HMXB =
       gane_feedback_energy_fraction(sp, feedback_props);
 
+  /* Track cumulative energy ejected by this star via HMXB feedback [tracking] */
+  sp->cumulative_HMXB_energy_ejected += f_E_HMXB * delta_E;
+
   /* Number of HMXB events for this stellar particle (for now, we equal this to
   the number of SNII rays) */
   const int number_of_HMXB_events = eagle_SNII_feedback_num_of_rays;
@@ -425,6 +428,11 @@ void compute_stellar_evolution(const struct feedback_props *feedback_props,
                           min_dying_mass_Msun, max_dying_mass_Msun, ti_begin);
   }
 
+  /* Compute properties of the HMXB feedback model [GANE] */
+  if (feedback_props->with_HMXB_feedback) {
+    compute_HMXB_feedback(sp, age, dt, ngb_gas_mass, feedback_props);
+  }
+  
   /* Integration interval is zero - this can happen if minimum and maximum
    * dying masses are above imf_max_mass_Msun. Return without doing any
    * enrichment. */
@@ -433,11 +441,6 @@ void compute_stellar_evolution(const struct feedback_props *feedback_props,
   /* Life is better in log */
   const double log10_max_dying_mass_Msun = log10(max_dying_mass_Msun);
   const double log10_min_dying_mass_Msun = log10(min_dying_mass_Msun);
-
-  /* Compute properties of the HMXB feedback model [GANE] */
-  if (feedback_props->with_HMXB_feedback) {
-    compute_HMXB_feedback(sp, age, dt, ngb_gas_mass, feedback_props);
-  }
 
   /* Compute elements, energy and momentum to distribute from the
    *  three channels SNIa, SNII, AGB */
