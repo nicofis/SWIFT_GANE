@@ -913,7 +913,7 @@ void feedback_clean(struct feedback_props *fp) {
   free(fp->AGB_element_names);
   /* [GANE] */
   if (fp->with_HMXB_feedback) {
-    for (int i = 0; i < gane_feedback_HMXB_N_ages; i++) {
+    for (int i = 0; i < gane_feedback_HMXB_N_metals; i++) {
       free(fp->HMXB_energies.energy[i]);
     }
     free(fp->HMXB_energies.energy);
