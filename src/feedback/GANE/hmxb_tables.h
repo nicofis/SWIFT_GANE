@@ -166,7 +166,7 @@ INLINE static double interpolate_HMXB_energy(
   const double age_2 = HMXB_table->age[j + 1];
 
   /* Normalize cell's age locations */
-  const float d_age = (float)((star_age - age_1) / (age_2 - age_1));
+  const double d_age = min(max((star_age - age_1) / (age_2 - age_1), 0.), 1.);
 
   double E;
   if (i < 0) {
@@ -186,7 +186,7 @@ INLINE static double interpolate_HMXB_energy(
     /* Interpolate energy at Z_birth using energies E_1 and E_2 */
     const double Z_1 = HMXB_table->metallicity[i];
     const double Z_2 = HMXB_table->metallicity[i + 1];
-    const float d_Z = (float)((Z_birth - Z_1) / (Z_2 - Z_1));
+    const double d_Z = min(max((Z_birth - Z_1) / (Z_2 - Z_1), 0.), 1.);
     E = (E_2 - E_1) * d_Z + E_1;
   }
 

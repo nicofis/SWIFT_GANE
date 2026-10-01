@@ -241,6 +241,10 @@ struct feedback_props {
   /*! Conversion factor from temperature to internal energy */
   float temp_to_u_factor;
 
+  /*! Conversion from (table energy) x (stellar mass in internal units) to
+   *  internal energy units. Table energies are in 1e-7 erg / Msun [GANE] */
+  double HMXB_energy_to_internal;
+
   /* ------------- Parameters for IMF --------------- */
 
   /*! Array to store calculated IMF */

@@ -277,8 +277,8 @@ double gane_feedback_energy_fraction(const struct spart *sp,
  * step.
  *
  * @param sp The star particle.
- * @param star_age Age of star at the beginning of the step in internal units.
- * @param dt Length of time-step in internal units.
+ * @param star_age Age of star at the beginning of the step in Gyrs.
+ * @param dt Length of time-step in Gyrs.
  * @param ngb_gas_mass Total un-weighted mass in the star's kernel (internal
  * units)
  * @param feedback_props The properties of the feedback model.
@@ -294,10 +294,11 @@ INLINE static void compute_HMXB_feedback(
   
   const double E_start = interpolate_HMXB_energy(star_age, Z_birth, feedback_props);
   const double E_end = interpolate_HMXB_energy(star_age + dt, Z_birth, feedback_props);
-  const double delta_E = (E_end - E_start) * 1e-7 * sp->mass_init; // El factor 1e-7 es para que E sea por unidad de masa, falta arreglar
+  const double delta_E = (E_end - E_start) * sp->mass_init *
+                         feedback_props->HMXB_energy_to_internal;
   const double f_E_HMXB =
       gane_feedback_energy_fraction(sp, feedback_props);
-
+  
   /* Track cumulative energy ejected by this star via HMXB feedback [tracking] */
   sp->cumulative_HMXB_energy_ejected += f_E_HMXB * delta_E;
 
@@ -430,7 +431,7 @@ void compute_stellar_evolution(const struct feedback_props *feedback_props,
 
   /* Compute properties of the HMXB feedback model [GANE] */
   if (feedback_props->with_HMXB_feedback) {
-    compute_HMXB_feedback(sp, age, dt, ngb_gas_mass, feedback_props);
+    compute_HMXB_feedback(sp, star_age_Gyr, dt_Gyr, ngb_gas_mass, feedback_props);
   }
   
   /* Integration interval is zero - this can happen if minimum and maximum
@@ -858,6 +859,10 @@ void feedback_props_init(struct feedback_props *fp,
 
   /* Read the tables  */
   read_HMXB_tables(fp);
+
+  /* Table energies are in 1e-7 erg / Msun (the 1e-7 is a temporary approximation) */
+  fp->HMXB_energy_to_internal = 1e-7 * fp->mass_to_solar_mass /
+                                units_cgs_conversion_factor(us, UNIT_CONV_ENERGY);
 }
 
 /**
