@@ -305,7 +305,7 @@ INLINE static void compute_HMXB_feedback(
   sp->cumulative_HMXB_energy_ejected += f_E_HMXB * delta_E;
 
   /* Number of HMXB events for this stellar particle */
-  int number_of_HMXB_events;
+  int number_of_HMXB_events = 0;
   const char *HMXB_injection_type = feedback_props->HMXB_injection_type;
 
   if (strcmp(HMXB_injection_type, "Uniform") == 0) {
@@ -320,6 +320,7 @@ INLINE static void compute_HMXB_feedback(
   }
   else {
     error("Invalid HMXB injection type!");
+    return;
   }
 
   const double delta_u = f_E_HMXB * delta_E * ngb_gas_N / (number_of_HMXB_events * ngb_gas_mass);
