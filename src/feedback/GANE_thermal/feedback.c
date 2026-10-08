@@ -279,13 +279,15 @@ double gane_feedback_energy_fraction(const struct spart *sp,
  * @param sp The star particle.
  * @param star_age Age of star at the beginning of the step in Gyrs.
  * @param dt Length of time-step in Gyrs.
+ * @param num_gas_ngbs Total (integer) number of gas neighbours within the
+ * star's kernel.
  * @param ngb_gas_mass Total un-weighted mass in the star's kernel (internal
  * units)
  * @param feedback_props The properties of the feedback model.
  */
 INLINE static void compute_HMXB_feedback(
-    struct spart *sp, const double star_age, const double dt, const float ngb_gas_mass,
-    const struct feedback_props *feedback_props) {
+    struct spart *sp, const double star_age, const double dt, const int ngb_gas_N,
+    const float ngb_gas_mass, const struct feedback_props *feedback_props) {
 
   /* Properties of the model (all in internal units) */
   /* Get metallicity (metal mass fraction) at birth time of the star */
@@ -302,12 +304,25 @@ INLINE static void compute_HMXB_feedback(
   /* Track cumulative energy ejected by this star via HMXB feedback [tracking] */
   sp->cumulative_HMXB_energy_ejected += f_E_HMXB * delta_E;
 
-  /* Number of HMXB events for this stellar particle (for now, we equal this to
-  the number of SNII rays) */
-  const int number_of_HMXB_events = eagle_SNII_feedback_num_of_rays;
-  
-  /* Energy per HMXB event*/
-  const double delta_u = f_E_HMXB * delta_E / (number_of_HMXB_events * ngb_gas_mass);
+  /* Number of HMXB events for this stellar particle */
+  int number_of_HMXB_events;
+  const char *HMXB_injection_type = feedback_props->HMXB_injection_type;
+
+  if (strcmp(HMXB_injection_type, "Uniform") == 0) {
+    /* If we are doing uniform injection, we just inject the energy into all 
+    neighbouring gas particles. */
+    number_of_HMXB_events = ngb_gas_N;
+  }
+  else if (strcmp(HMXB_injection_type, "Stochastic") == 0) {
+    /* If we are doing stochastic injection, we inject the energy into a 
+    random subset of neighbouring gas particle equal to the number of SNII rays. */
+    number_of_HMXB_events = eagle_SNII_feedback_num_of_rays;
+  }
+  else {
+    error("Invalid HMXB injection type!");
+  }
+
+  const double delta_u = f_E_HMXB * delta_E * ngb_gas_N / (number_of_HMXB_events * ngb_gas_mass);
   
   /* Current total f_E for this star */
   double star_f_E_HMXB = sp->f_E_HMXB * sp->number_of_HMXB_events;
@@ -431,7 +446,8 @@ void compute_stellar_evolution(const struct feedback_props *feedback_props,
 
   /* Compute properties of the HMXB feedback model [GANE] */
   if (feedback_props->with_HMXB_feedback) {
-    compute_HMXB_feedback(sp, star_age_Gyr, dt_Gyr, ngb_gas_mass, feedback_props);
+    compute_HMXB_feedback(sp, star_age_Gyr, dt_Gyr, ngb_Number, 
+                          ngb_gas_mass, feedback_props);
   }
   
   /* Integration interval is zero - this can happen if minimum and maximum
@@ -681,6 +697,8 @@ void feedback_props_init(struct feedback_props *fp,
   /* Properties of the HMXB feedback model [GANE] --------------------------- */
   fp->f_E_HMXB =
       parser_get_param_double(params, "GANEFeedback:HMXB_energy_fraction");
+  parser_get_param_string(params, "GANEFeedback:HMXB_injection_type",
+                        fp->HMXB_injection_type);
 
   /* Properties of the SNII enrichment model -------------------------------- */
 

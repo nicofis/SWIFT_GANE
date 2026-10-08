@@ -224,6 +224,9 @@ struct feedback_props {
   /*! Energy fraction for HMXB feedback */
   float f_E_HMXB;
 
+  /*! Type of HMXB energy injection */
+  char HMXB_injection_type[20];
+
   /*! Otros parámetros propios del modelo de Leo */
 
   /* ------------- Conversion factors --------------- */
