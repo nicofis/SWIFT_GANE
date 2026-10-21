@@ -100,6 +100,9 @@ struct tracers_xpart_data {
   /*! Has this particle been hit by SNII feedback? */
   char hit_by_SNII_feedback;
 
+  /*! Has this particle been hit by HMXB feedback? [GANE] */
+  int hit_by_HMXB_feedback;
+
   /*! Has this particle been hit by AGN feedback? */
   char hit_by_AGN_feedback;
 

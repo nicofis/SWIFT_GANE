@@ -440,14 +440,14 @@ runner_iact_nonsym_feedback_apply(
       si->feedback_data.to_distribute.HMXB_num_of_thermal_energy_inj;
 
   /* Are we doing some HMXB feedback? */
-  if (N_of_HMXB_thermal_energy_inj > 0) {
+  if (N_of_HMXB_thermal_energy_inj > 0 
+    && si->feedback_data.to_distribute.HMXB_delta_u > 0.f) {
 
     const char *HMXB_injection_type = fb_props->HMXB_injection_type;
     
     if (strcmp(HMXB_injection_type, "Uniform") == 0) {
       /* If we are doing uniform injection, directly inject the feedback
       energy */
-      if (si->feedback_data.to_distribute.HMXB_delta_u > 0.f) {
 
       /* Compute new energy of this particle */
       const double u_init = hydro_get_physical_internal_energy(pj, xpj, cosmo);
@@ -463,12 +463,11 @@ runner_iact_nonsym_feedback_apply(
       hydro_diffusive_feedback_reset(pj);
 
       /* Mark this particle has having been heated by HMXB feedback */
-      tracers_after_feedback(xpj);
+      tracers_after_HMXB_feedback(xpj);
 
       /* Synchronize the particle on the timeline */
       timestep_sync_part(pj);
       }
-    }
 
     else if (strcmp(HMXB_injection_type, "Stochastic") == 0) {
       /* If we are doing stochastic injection, do the same as SNII. */
@@ -499,7 +498,7 @@ runner_iact_nonsym_feedback_apply(
         hydro_diffusive_feedback_reset(pj);
 
         /* Mark this particle has having been heated by HMXB feedback */
-        tracers_after_feedback(xpj);
+        tracers_after_HMXB_feedback(xpj);
 
         /* message( */
         /*     "We did some heating! id %llu star id %llu probability %.5e " */

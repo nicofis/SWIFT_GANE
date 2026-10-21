@@ -39,7 +39,7 @@ __attribute__((always_inline)) INLINE static void tracers_debug_particle(
         "density_at_last_AGN_feedback_event = %.3e, "
         "entropy_at_last_AGN_feedback_event = %.3e, AGN_feedback_energy = "
         "%.3e, "
-        "hit_by_SNII_feedback = %d, hit_by_AGN_feedback = %d",
+        "hit_by_SNII_feedback = %d, hit_by_HMXB_feedback = %i, hit_by_AGN_feedback = %d", // [GANE]
         p->id, xp->tracers_data.maximum_temperature,
         xp->tracers_data.maximum_temperature_scale_factor,
         xp->tracers_data.last_AGN_injection_scale_factor,
@@ -49,6 +49,7 @@ __attribute__((always_inline)) INLINE static void tracers_debug_particle(
         xp->tracers_data.entropy_at_last_AGN_feedback_event,
         xp->tracers_data.AGN_feedback_energy,
         xp->tracers_data.hit_by_SNII_feedback,
+        xp->tracers_data.hit_by_HMXB_feedback, // [GANE]
         xp->tracers_data.hit_by_AGN_feedback);
   }
 }
