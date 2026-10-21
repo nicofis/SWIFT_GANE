@@ -280,7 +280,7 @@ static INLINE void tracers_first_init_xpart(
   xp->tracers_data.maximum_temperature = -1.f;
   xp->tracers_data.maximum_temperature_time = -1.f;
   xp->tracers_data.hit_by_SNII_feedback = 0;
-  xp->tracers_data.hit_by_HMXB_feedback = 0;
+  xp->tracers_data.hit_by_HMXB_feedback = 0; // [GANE]
   xp->tracers_data.hit_by_AGN_feedback = 0;
   xp->tracers_data.AGN_feedback_energy = 0.f;
 
@@ -357,7 +357,7 @@ static INLINE void tracers_first_init_sink(struct sink *sink,
                                            const struct cosmology *cosmo) {}
 
 /**
- * @brief Update the particles' tracer data after a SN stellar feedback
+ * @brief Update the particles' tracer data after a SNII stellar feedback
  * event.
  *
  * @param xp The extended particle data.
