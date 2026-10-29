@@ -301,6 +301,9 @@ INLINE static void compute_HMXB_feedback(
   const double f_E_HMXB =
       gane_feedback_energy_fraction(sp, feedback_props);
   
+  /* Abort if there is no HMXB energy available this step */
+  if (delta_E <= 0. || f_E_HMXB <= 0.) return;
+
   /* Track cumulative energy ejected by this star via HMXB feedback [tracking] */
   sp->cumulative_HMXB_energy_ejected += f_E_HMXB * delta_E;
 
