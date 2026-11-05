@@ -227,7 +227,11 @@ struct feedback_props {
   /*! Type of HMXB energy injection */
   char HMXB_injection_type[20];
 
-  /*! Otros parámetros propios del modelo de Leo */
+  /*! Minimum timestep for HMXB feedback */
+  float min_HMXB_timestep_Gyr;
+
+  /*! Minimum temperature change for HMXB feedback */
+  float min_HMXB_delta_T_K;
 
   /* ------------- Conversion factors --------------- */
 

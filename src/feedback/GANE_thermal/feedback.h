@@ -155,7 +155,7 @@ __attribute__((always_inline)) INLINE static void feedback_reset_feedback(
   /* Zero the SNII feedback properties */
   sp->feedback_data.to_distribute.SNII_num_of_thermal_energy_inj = 0;
 
-    /* Zero the HMXB feedback energy [GANE] */
+  /* Zero the HMXB feedback energy [GANE] */
   sp->feedback_data.to_distribute.HMXB_delta_u = 0.f;
 
   /* Zero the HMXB feedback properties [GANE] */
@@ -175,6 +175,10 @@ __attribute__((always_inline)) INLINE static void feedback_first_init_spart(
     struct spart *sp, const struct feedback_props *feedback_props) {
 
   feedback_init_spart(sp);
+  /* Initialize the reserved energy for HMXB feedback [GANE] */
+  sp->feedback_data.delta_E_reservoir = 0.f;
+  /* Initialize the time since the last HMXB feedback event [GANE] */
+  sp->feedback_data.time_since_last_HMXB_feedback = 0.f;
 }
 
 /**

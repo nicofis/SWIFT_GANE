@@ -298,14 +298,15 @@ INLINE static void compute_HMXB_feedback(
   const double E_end = interpolate_HMXB_energy(star_age + dt, Z_birth, feedback_props);
   const double delta_E = (E_end - E_start) * sp->mass_init *
                          feedback_props->HMXB_energy_to_internal;
+  const double delta_E_tot = delta_E + sp->feedback_data.delta_E_reservoir;
   const double f_E_HMXB =
       gane_feedback_energy_fraction(sp, feedback_props);
   
-  /* Abort if there is no HMXB energy available this step */
-  if (delta_E <= 0. || f_E_HMXB <= 0.) return;
+  /* Update the time since the last HMXB feedback event */
+  sp->feedback_data.time_since_last_HMXB_feedback += dt;
 
-  /* Track cumulative energy ejected by this star via HMXB feedback [tracking] */
-  sp->cumulative_HMXB_energy_ejected += f_E_HMXB * delta_E;
+  /* Abort if there is no HMXB energy available this step */
+  if (f_E_HMXB * delta_E_tot <= 0.) return;
 
   /* Number of HMXB events for this stellar particle */
   int number_of_HMXB_events = 0;
@@ -326,8 +327,22 @@ INLINE static void compute_HMXB_feedback(
     return;
   }
 
-  const double delta_u = f_E_HMXB * delta_E * ngb_gas_N / (number_of_HMXB_events * ngb_gas_mass);
-  
+  const double delta_u = f_E_HMXB * delta_E_tot * ngb_gas_N / (number_of_HMXB_events * ngb_gas_mass);
+
+  /* Decide whether to apply feedback based on minimum timestep or temperature, if greater than zero.
+  If the star is old enough, we also apply feedback. */
+  const bool do_feedback = 
+  ((sp->feedback_data.time_since_last_HMXB_feedback >= feedback_props->min_HMXB_timestep_Gyr) 
+  && (delta_u / feedback_props->temp_to_u_factor >= feedback_props->min_HMXB_delta_T_K)) 
+  || (star_age + dt >= 0.05);
+
+  if (!do_feedback) {
+    /* If we are not doing feedback, we store the energy in the reservoir for 
+    future timesteps and abort. */
+    sp->feedback_data.delta_E_reservoir += delta_E;
+    return;
+  }
+
   /* Current total f_E for this star */
   double star_f_E_HMXB = sp->f_E_HMXB * sp->number_of_HMXB_events;
 
@@ -340,6 +355,13 @@ INLINE static void compute_HMXB_feedback(
   sp->feedback_data.to_distribute.HMXB_delta_u = delta_u;
   sp->feedback_data.to_distribute.HMXB_num_of_thermal_energy_inj =
       number_of_HMXB_events;
+
+  /* Track cumulative energy ejected by this star via HMXB feedback [tracking] */
+  sp->cumulative_HMXB_energy_ejected += f_E_HMXB * delta_E_tot;
+
+  /* Reset the reservoir since we have now injected the energy */
+  sp->feedback_data.delta_E_reservoir = 0.f;
+  sp->feedback_data.time_since_last_HMXB_feedback = 0.f;
 }
 
 /**
@@ -703,6 +725,10 @@ void feedback_props_init(struct feedback_props *fp,
       parser_get_param_double(params, "GANEFeedback:HMXB_energy_fraction");
   parser_get_param_string(params, "GANEFeedback:HMXB_injection_type",
                         fp->HMXB_injection_type);
+  fp->min_HMXB_timestep_Gyr =
+      parser_get_opt_param_double(params, "GANEFeedback:HMXB_min_timestep_Gyr", 0.0);
+  fp->min_HMXB_delta_T_K =
+      parser_get_opt_param_double(params, "GANEFeedback:HMXB_min_delta_T_K", 0.0);
 
   /* Properties of the SNII enrichment model -------------------------------- */
 

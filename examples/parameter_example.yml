@@ -762,6 +762,13 @@ EAGLEFeedback:
   SNII_yield_factor_Magnesium:         2.0             # (Optional) Correction factor to apply to the Magnesium yield from the SNII channel.
   SNII_yield_factor_Silicon:           1.0             # (Optional) Correction factor to apply to the Silicon yield from the SNII channel.
   SNII_yield_factor_Iron:              0.5             # (Optional) Correction factor to apply to the Iron yield from the SNII channel.
+# Additional parameters for the GANE feedback model (use with GANEFeedback:)
+  use_HMXB_feedback:                   0               # Activate the HMXB feedback model (1) or not (0)
+  HMXB_filename:                       ./              # Path to the directory containing the HMXB energy tables.
+  HMXB_energy_fraction:                1.0             # Maximal fraction of energy applied in a HMXB feedback event.
+  HMXB_min_timestep_Gyr:               0.0             # (Optional) Minimal time-step in Gyr between two HMXB feedback events.
+  HMXB_min_delta_T_K:                  3.16228e7       # (Optional) Minimal temperature increase in K needed to inject HMXB feedback energy.
+  HMXB_injection_type:                 Uniform         # HMXB feedback injection type (Uniform or Stochastic).
 
 # GEAR feedback model
 GEARFeedback:

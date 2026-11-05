@@ -129,6 +129,12 @@ struct feedback_spart_data {
 
   /* Instantiate ray structs for SNII [and HMXB ]isotropic feedback  */
   struct ray_data SNII_rays[eagle_SNII_feedback_num_of_rays];
+
+  /* Reserved energy for HMXB feedback [GANE] */
+  float delta_E_reservoir;
+
+  /* Time since the last HMXB feedback event [GANE] */
+  float time_since_last_HMXB_feedback;
 };
 
 #endif /* SWIFT_FEEDBACK_STRUCT_GANE_THERMAL_H */
