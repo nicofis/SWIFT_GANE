@@ -24,6 +24,7 @@
 #include "../GANE/enrichment.h"
 #include "../GANE/yield_tables.h"
 #include "../GANE/hmxb_tables.h"
+#include "../GANE/snii_tables.h"
 #include "hydro_properties.h"
 #include "inline.h"
 #include "random.h"
@@ -123,6 +124,8 @@ double eagle_feedback_energy_fraction(const struct spart *sp,
  * @param sp The star particle.
  * @param star_age Age of star at the beginning of the step in internal units.
  * @param dt Length of time-step in internal units.
+ * @param star_age_Gyr Age of star at the beginning of the step in Gyr [GANE].
+ * @param dt_Gyr Length of time-step in Gyr [GANE].
  * @param ngb_gas_mass Total un-weighted mass in the star's kernel (internal
  * units)
  * @param num_gas_ngbs Total (integer) number of gas neighbours within the
@@ -139,118 +142,187 @@ double eagle_feedback_energy_fraction(const struct spart *sp,
  */
 INLINE static void compute_SNII_feedback(
     struct spart *sp, const double star_age, const double dt,
+    const double star_age_Gyr, const double dt_Gyr, // [GANE]
     const int ngb_gas_N, const float ngb_gas_mass, const double ngb_nH_cgs,
     const double ngb_Z, const struct feedback_props *feedback_props,
     const double min_dying_mass_Msun, const double max_dying_mass_Msun,
     const integertime_t ti_begin) {
 
-  /* Are we sampling the delay function or using a fixed delay? */
-  const int SNII_sampled_delay = feedback_props->SNII_sampled_delay;
+  /* vvv [GANE] vvv */
+  double f_E;
+  double delta_u;
+  int number_of_SN_events = 0;
 
-  /* Time after birth considered for SNII feedback (internal units)
-   * when using a fixed delay */
-  const double SNII_wind_delay = feedback_props->SNII_wind_delay;
+  if (feedback_props->with_SNII_tables) {
+    /* Properties of the model (all in internal units) */
+    /* Get metallicity (metal mass fraction) at birth time of the star */
+    const double Z_birth =
+        chemistry_get_star_total_metal_mass_fraction_for_feedback(sp);
+    
+    const double E_start = interpolate_SNII_energy(star_age_Gyr, Z_birth, feedback_props);
+    const double E_end = interpolate_SNII_energy(star_age_Gyr + dt_Gyr, Z_birth, feedback_props);
+    const double delta_E = (E_end - E_start) * sp->mass_init *
+                          feedback_props->feedback_energy_to_internal;
+    const double delta_E_tot = delta_E + sp->feedback_data.delta_E_SN_reservoir;
+    f_E = feedback_props->f_E_SNII;
+    
+    /* Update the time since the last SNII feedback event */
+    sp->feedback_data.time_since_last_SNII_feedback += dt_Gyr;
 
-  /* Are we doing feedback this step?
-   * Note that since the ages are calculated using an interpolation table we
-   * must allow some tolerance here*/
-  if ((SNII_sampled_delay) || (star_age <= SNII_wind_delay &&
-                               (star_age + 1.001 * dt) > SNII_wind_delay)) {
+    /* Abort if there is no SNII energy available this step */
+    if (f_E * delta_E_tot <= 0.) return;
 
-    /* Make sure a star does not do feedback twice
-     * when using a fixed delay! */
-    if (!SNII_sampled_delay && sp->f_E != -1.f) {
-#ifdef SWIFT_DEBUG_CHECKS
-      message("Star has already done feedback! sp->id=%lld age=%e d=%e", sp->id,
-              star_age, dt);
-#endif
+    /* Number of SNII events for this stellar particle */
+    const char *SNII_injection_type = feedback_props->SNII_injection_type;
+
+    if (strcmp(SNII_injection_type, "Uniform") == 0) {
+      /* If we are doing uniform injection, we just inject the energy into all 
+      neighbouring gas particles. */
+      number_of_SN_events = ngb_gas_N;
+    }
+    else if (strcmp(SNII_injection_type, "Stochastic") == 0) {
+      /* If we are doing stochastic injection, we inject the energy into a 
+      random subset of neighbouring gas particle equal to the number of SNII rays. */
+      number_of_SN_events = eagle_SNII_feedback_num_of_rays;
+    }
+    else {
+      error("Invalid SNII injection type!");
       return;
     }
 
-    /* Properties of the model (all in internal units) */
-    const double delta_T =
-        eagle_feedback_temperature_change(sp, feedback_props);
-    const double E_SNe = feedback_props->E_SNII;
-    const double f_E =
-        eagle_feedback_energy_fraction(sp, feedback_props, ngb_nH_cgs, ngb_Z);
+    delta_u = f_E * delta_E_tot * ngb_gas_N / (number_of_SN_events * ngb_gas_mass);
 
-    /* Number of SNe at this time-step */
-    double N_SNe;
-    if (SNII_sampled_delay) {
-      N_SNe = eagle_feedback_number_of_sampled_SNII(
-          sp, feedback_props, min_dying_mass_Msun, max_dying_mass_Msun);
-    } else {
-      N_SNe = eagle_feedback_number_of_SNII(sp, feedback_props);
+    /* Decide whether to apply feedback based on minimum timestep or temperature, if greater than zero.
+    If the star is old enough, we also apply feedback. */
+    const bool do_feedback = 
+    ((sp->feedback_data.time_since_last_SNII_feedback >= feedback_props->min_SNII_timestep_Gyr) 
+    && (delta_u / feedback_props->temp_to_u_factor >= feedback_props->min_SNII_delta_T_K)) 
+    || (star_age_Gyr + dt_Gyr >= 0.05);
+
+    if (!do_feedback) {
+      /* If we are not doing feedback, we store the energy in the reservoir for 
+      future timesteps and abort. */
+      sp->feedback_data.delta_E_SN_reservoir += delta_E;
+      return;
     }
+  } else {
+    /* ^^^ [GANE] ^^^ */
+    /* Are we sampling the delay function or using a fixed delay? */
+    const int SNII_sampled_delay = feedback_props->SNII_sampled_delay;
 
-    /* Abort if there are no SNe exploding this step */
-    if (N_SNe <= 0.) return;
+    /* Time after birth considered for SNII feedback (internal units)
+    * when using a fixed delay */
+    const double SNII_wind_delay = feedback_props->SNII_wind_delay;
 
-    /* Conversion factor from T to internal energy */
-    const double conv_factor = feedback_props->temp_to_u_factor;
+    /* Are we doing feedback this step?
+    * Note that since the ages are calculated using an interpolation table we
+    * must allow some tolerance here*/
+    if ((SNII_sampled_delay) || (star_age <= SNII_wind_delay &&
+                                (star_age + 1.001 * dt) > SNII_wind_delay)) {
 
-    /* Calculate the default heating probability (accounting for round-off) */
-    double prob = f_E * E_SNe * N_SNe / (conv_factor * delta_T * ngb_gas_mass);
-    prob = max(prob, 0.0);
-
-    /* Calculate the change in internal energy of the gas particles that get
-     * heated */
-    double delta_u;
-
-    /* Number of SNII events for this stellar particle */
-    int number_of_SN_events = 0;
-
-    if (prob <= 1.) {
-
-      /* Normal case */
-      delta_u = delta_T * conv_factor;
-
-      for (int i = 0; i < ngb_gas_N; i++) {
-        const double rand_thermal = random_unit_interval_part_ID_and_index(
-            sp->id, i, ti_begin, random_number_stellar_feedback_3);
-        if (rand_thermal < prob) number_of_SN_events++;
+      /* Make sure a star does not do feedback twice
+      * when using a fixed delay! */
+      if (!SNII_sampled_delay && sp->f_E != -1.f) {
+  #ifdef SWIFT_DEBUG_CHECKS
+        message("Star has already done feedback! sp->id=%lld age=%e d=%e", sp->id,
+                star_age, dt);
+  #endif
+        return;
       }
 
-    } else {
+      /* Properties of the model (all in internal units) */
+      const double delta_T =
+          eagle_feedback_temperature_change(sp, feedback_props);
+      const double E_SNe = feedback_props->E_SNII;
+      // const double f_E =
+      //     eagle_feedback_energy_fraction(sp, feedback_props, ngb_nH_cgs, ngb_Z);
+      f_E = eagle_feedback_energy_fraction(sp, feedback_props, ngb_nH_cgs, ngb_Z);
 
-      /* Special case: we need to adjust the energy irrespective of the
-         desired deltaT to ensure we inject all the available energy. */
-      delta_u = f_E * E_SNe * N_SNe / ngb_gas_mass;
+      /* Number of SNe at this time-step */
+      double N_SNe;
+      if (SNII_sampled_delay) {
+        N_SNe = eagle_feedback_number_of_sampled_SNII(
+            sp, feedback_props, min_dying_mass_Msun, max_dying_mass_Msun);
+      } else {
+        N_SNe = eagle_feedback_number_of_SNII(sp, feedback_props);
+      }
 
-      /* Number of SNIa events is equal to the number of Ngbs */
-      number_of_SN_events = ngb_gas_N;
-    }
+      /* Abort if there are no SNe exploding this step */
+      if (N_SNe <= 0.) return;
 
-#ifdef SWIFT_DEBUG_CHECKS
-    if (f_E < feedback_props->f_E_min || f_E > feedback_props->f_E_max)
-      error("f_E is not in the valid range! f_E=%f sp->id=%lld", f_E, sp->id);
-#endif
+      /* Conversion factor from T to internal energy */
+      const double conv_factor = feedback_props->temp_to_u_factor;
 
-    /* If we have more heating events than the maximum number of
-     * rays (eagle_feedback_number_of_rays), then we cannot
-     * distribute all of the heating events (since 1 event = 1 ray), so we need
-     * to increase the thermal energy per ray and make the number of events
-     * equal to the number of rays */
-    if (number_of_SN_events > eagle_SNII_feedback_num_of_rays) {
-      const double alpha_thermal =
-          (double)number_of_SN_events / (double)eagle_SNII_feedback_num_of_rays;
-      delta_u *= alpha_thermal;
-      number_of_SN_events = eagle_SNII_feedback_num_of_rays;
-    }
+      /* Calculate the default heating probability (accounting for round-off) */
+      double prob = f_E * E_SNe * N_SNe / (conv_factor * delta_T * ngb_gas_mass);
+      prob = max(prob, 0.0);
 
-    /* Current total f_E for this star */
-    double star_f_E = sp->f_E * sp->number_of_SNII_events;
+      /* Calculate the change in internal energy of the gas particles that get
+      * heated */
+      // double delta_u;
 
-    /* New total */
-    star_f_E = (star_f_E + f_E) / (sp->number_of_SNII_events + 1.);
+      /* Number of SNII events for this stellar particle */
+      // int number_of_SN_events = 0;
 
-    /* Store all of this in the star for delivery onto the gas and recording */
-    sp->f_E = star_f_E;
-    sp->number_of_SNII_events++;
-    sp->feedback_data.to_distribute.SNII_delta_u = delta_u;
-    sp->feedback_data.to_distribute.SNII_num_of_thermal_energy_inj =
-        number_of_SN_events;
+      if (prob <= 1.) {
+
+        /* Normal case */
+        delta_u = delta_T * conv_factor;
+
+        for (int i = 0; i < ngb_gas_N; i++) {
+          const double rand_thermal = random_unit_interval_part_ID_and_index(
+              sp->id, i, ti_begin, random_number_stellar_feedback_3);
+          if (rand_thermal < prob) number_of_SN_events++;
+        }
+
+      } else {
+
+        /* Special case: we need to adjust the energy irrespective of the
+          desired deltaT to ensure we inject all the available energy. */
+        delta_u = f_E * E_SNe * N_SNe / ngb_gas_mass;
+
+        /* Number of SNIa events is equal to the number of Ngbs */
+        number_of_SN_events = ngb_gas_N;
+      }
+
+  #ifdef SWIFT_DEBUG_CHECKS
+      if (f_E < feedback_props->f_E_min || f_E > feedback_props->f_E_max)
+        error("f_E is not in the valid range! f_E=%f sp->id=%lld", f_E, sp->id);
+  #endif
+
+      /* If we have more heating events than the maximum number of
+      * rays (eagle_feedback_number_of_rays), then we cannot
+      * distribute all of the heating events (since 1 event = 1 ray), so we need
+      * to increase the thermal energy per ray and make the number of events
+      * equal to the number of rays */
+      if (number_of_SN_events > eagle_SNII_feedback_num_of_rays) {
+        const double alpha_thermal =
+            (double)number_of_SN_events / (double)eagle_SNII_feedback_num_of_rays;
+        delta_u *= alpha_thermal;
+        number_of_SN_events = eagle_SNII_feedback_num_of_rays;
+      }
+    } else return; // [GANE]
   }
+  /* Current total f_E for this star */
+  double star_f_E = sp->f_E * sp->number_of_SNII_events;
+
+  /* New total */
+  star_f_E = (star_f_E + f_E) / (sp->number_of_SNII_events + 1.);
+
+  /* Store all of this in the star for delivery onto the gas and recording */
+  sp->f_E = star_f_E;
+  sp->number_of_SNII_events++;
+  sp->feedback_data.to_distribute.SNII_delta_u = delta_u;
+  sp->feedback_data.to_distribute.SNII_num_of_thermal_energy_inj =
+      number_of_SN_events;
+
+  /* Track cumulative energy ejected by this star via SNII feedback [tracking] [GANE] */
+  sp->cumulative_SNII_energy_ejected += 
+      delta_u * number_of_SN_events * ngb_gas_mass / ngb_gas_N;
+
+  /* Reset the reservoir since we have now injected the energy */
+  sp->feedback_data.delta_E_SN_reservoir = 0.f;
+  sp->feedback_data.time_since_last_SNII_feedback = 0.f;
 }
 
 /**
@@ -297,16 +369,16 @@ INLINE static void compute_HMXB_feedback(
   const double E_start = interpolate_HMXB_energy(star_age, Z_birth, feedback_props);
   const double E_end = interpolate_HMXB_energy(star_age + dt, Z_birth, feedback_props);
   const double delta_E = (E_end - E_start) * sp->mass_init *
-                         feedback_props->HMXB_energy_to_internal;
-  const double delta_E_tot = delta_E + sp->feedback_data.delta_E_reservoir;
-  const double f_E_HMXB =
+                         feedback_props->feedback_energy_to_internal;
+  const double delta_E_tot = delta_E + sp->feedback_data.delta_E_HMXB_reservoir;
+  const double f_E =
       gane_feedback_energy_fraction(sp, feedback_props);
   
   /* Update the time since the last HMXB feedback event */
   sp->feedback_data.time_since_last_HMXB_feedback += dt;
 
   /* Abort if there is no HMXB energy available this step */
-  if (f_E_HMXB * delta_E_tot <= 0.) return;
+  if (f_E * delta_E_tot <= 0.) return;
 
   /* Number of HMXB events for this stellar particle */
   int number_of_HMXB_events = 0;
@@ -327,7 +399,7 @@ INLINE static void compute_HMXB_feedback(
     return;
   }
 
-  const double delta_u = f_E_HMXB * delta_E_tot * ngb_gas_N / (number_of_HMXB_events * ngb_gas_mass);
+  const double delta_u = f_E * delta_E_tot * ngb_gas_N / (number_of_HMXB_events * ngb_gas_mass);
 
   /* Decide whether to apply feedback based on minimum timestep or temperature, if greater than zero.
   If the star is old enough, we also apply feedback. */
@@ -339,7 +411,7 @@ INLINE static void compute_HMXB_feedback(
   if (!do_feedback) {
     /* If we are not doing feedback, we store the energy in the reservoir for 
     future timesteps and abort. */
-    sp->feedback_data.delta_E_reservoir += delta_E;
+    sp->feedback_data.delta_E_HMXB_reservoir += delta_E;
     return;
   }
 
@@ -347,7 +419,7 @@ INLINE static void compute_HMXB_feedback(
   double star_f_E_HMXB = sp->f_E_HMXB * sp->number_of_HMXB_events;
 
   /* New total */
-  star_f_E_HMXB = (star_f_E_HMXB + f_E_HMXB) / (sp->number_of_HMXB_events + 1.);
+  star_f_E_HMXB = (star_f_E_HMXB + f_E) / (sp->number_of_HMXB_events + 1.);
 
   /* Store all of this in the star for delivery onto the gas and recording */
   sp->f_E_HMXB = star_f_E_HMXB;
@@ -357,10 +429,10 @@ INLINE static void compute_HMXB_feedback(
       number_of_HMXB_events;
 
   /* Track cumulative energy ejected by this star via HMXB feedback [tracking] */
-  sp->cumulative_HMXB_energy_ejected += f_E_HMXB * delta_E_tot;
+  sp->cumulative_HMXB_energy_ejected += f_E * delta_E_tot;
 
   /* Reset the reservoir since we have now injected the energy */
-  sp->feedback_data.delta_E_reservoir = 0.f;
+  sp->feedback_data.delta_E_HMXB_reservoir = 0.f;
   sp->feedback_data.time_since_last_HMXB_feedback = 0.f;
 }
 
@@ -464,8 +536,9 @@ void compute_stellar_evolution(const struct feedback_props *feedback_props,
 #endif
 
   /* Compute properties of the stochastic SNII feedback model. */
+  /* [GANE: added star_age_Gyr, dt_Gyr] */
   if (feedback_props->with_SNII_feedback) {
-    compute_SNII_feedback(sp, age, dt, ngb_Number, ngb_gas_mass,
+    compute_SNII_feedback(sp, age, dt, star_age_Gyr, dt_Gyr, ngb_Number, ngb_gas_mass,
                           ngb_gas_phys_nH_cgs, ngb_gas_Z, feedback_props,
                           min_dying_mass_Msun, max_dying_mass_Msun, ti_begin);
   }
@@ -584,6 +657,20 @@ void feedback_props_init(struct feedback_props *fp,
   fp->log10_imf_min_mass_msun = log10(fp->imf_min_mass_msun);
 
   /* Properties of the SNII energy feedback model ------------------------- */
+
+  /* Are we using the SNII energies from a table or using the EAGLE model? [GANE] */
+  fp->with_SNII_tables =
+      parser_get_opt_param_int(params, "GANEFeedback:use_SNII_tables", 0);
+
+  /* Properties of the GANE-SNII feedback model [GANE] --------------------------- */
+  fp->f_E_SNII =
+      parser_get_opt_param_double(params, "GANEFeedback:SNII_energy_fraction", 0.0);
+  parser_get_opt_param_string(params, "GANEFeedback:SNII_injection_type",
+                        fp->SNII_injection_type, "Stochastic");
+  fp->min_SNII_timestep_Gyr =
+      parser_get_opt_param_double(params, "GANEFeedback:SNII_min_timestep_Gyr", 0.0);
+  fp->min_SNII_delta_T_K =
+      parser_get_opt_param_double(params, "GANEFeedback:SNII_min_delta_T_K", 0.0);
 
   char model[64];
   parser_get_param_string(params, "GANEFeedback:SNII_feedback_model", model);
@@ -896,20 +983,36 @@ void feedback_props_init(struct feedback_props *fp,
             fp->n_0_cgs);
   }
 
-  /* Initialise the HMXB table [GANE] -------------------------------------- */
+  /* Initialise the SNII table, if needed [GANE] -------------------------------------- */
 
+  if (fp->with_SNII_feedback && fp->with_SNII_tables) {
+  /* Read SNII table filepath  */
+  parser_get_param_string(params, "GANEFeedback:SNII_filename",
+                          fp->SNII_table_path);
+
+  /* Allocate SNII tables */
+  allocate_SNII_tables(fp);
+
+  /* Read the tables  */
+  read_SNII_tables(fp);
+  }
+
+  /* Initialise the HMXB table, if corresponds [GANE] -------------------------------------- */
+
+  if (fp->with_HMXB_feedback) {
   /* Read HMXB table filepath  */
   parser_get_param_string(params, "GANEFeedback:HMXB_filename",
                           fp->HMXB_table_path);
 
-  /* Allocate HMXB tables  */
+  /* Allocate HMXB tables */
   allocate_HMXB_tables(fp);
 
   /* Read the tables  */
   read_HMXB_tables(fp);
+  }
 
   /* Table energies are in erg / Msun */
-  fp->HMXB_energy_to_internal = fp->mass_to_solar_mass /
+  fp->feedback_energy_to_internal = fp->mass_to_solar_mass /
                                 units_cgs_conversion_factor(us, UNIT_CONV_ENERGY);
 }
 
@@ -943,8 +1046,14 @@ void feedback_clean(struct feedback_props *fp) {
   swift_free("feedback-tables", fp->yield_SNII.ejecta_IMF_resampled);
   swift_free("feedback-tables", fp->yield_SNII.total_metals);
   swift_free("feedback-tables", fp->yield_SNII.total_metals_IMF_resampled);
-  swift_free("feedback-tables", fp->HMXB_energies.age); // [GANE]
-  swift_free("feedback-tables", fp->HMXB_energies.metallicity); // [GANE]
+  if (fp->with_SNII_feedback && fp->with_SNII_tables) {
+    swift_free("feedback-tables", fp->SNII_energies.age); // [GANE]
+    swift_free("feedback-tables", fp->SNII_energies.metallicity); // [GANE]
+  }
+  if (fp->with_HMXB_feedback) {
+    swift_free("feedback-tables", fp->HMXB_energies.age); // [GANE]
+    swift_free("feedback-tables", fp->HMXB_energies.metallicity); // [GANE]
+  }
   swift_free("feedback-tables", fp->lifetimes.mass);
   swift_free("feedback-tables", fp->lifetimes.metallicity);
   swift_free("feedback-tables", fp->yield_mass_bins);
@@ -970,6 +1079,13 @@ void feedback_clean(struct feedback_props *fp) {
       free(fp->HMXB_energies.energy[i]);
     }
     free(fp->HMXB_energies.energy);
+  }
+  /* [GANE] */
+  if (fp->with_SNII_feedback && fp->with_SNII_tables) {
+    for (int i = 0; i < gane_feedback_SNII_N_metals; i++) {
+      free(fp->SNII_energies.energy[i]);
+    }
+    free(fp->SNII_energies.energy);
   }
 }
 
@@ -999,6 +1115,11 @@ void feedback_struct_dump(const struct feedback_props *feedback, FILE *stream) {
   feedback_copy.SNIa_element_names = NULL;
   feedback_copy.SNII_element_names = NULL;
   feedback_copy.AGB_element_names = NULL;
+
+  /* zero SNII table pointers [GANE] */
+  feedback_copy.SNII_energies.age = NULL;
+  feedback_copy.SNII_energies.metallicity = NULL;
+  feedback_copy.SNII_energies.energy = NULL;
 
   /* zero HMXB table pointers [GANE] */
   feedback_copy.HMXB_energies.age = NULL;
@@ -1040,6 +1161,10 @@ void feedback_struct_restore(struct feedback_props *feedback, FILE *stream) {
     feedback_restore_tables(feedback);
 
   /* [GANE] */
+  if (strlen(feedback->SNII_table_path) != 0)
+    feedback_restore_SNII_tables(feedback);
+
+  /* [GANE] */
   if (strlen(feedback->HMXB_table_path) != 0)
-    feedback_restore_tables(feedback);
+    feedback_restore_HMXB_tables(feedback);
 }

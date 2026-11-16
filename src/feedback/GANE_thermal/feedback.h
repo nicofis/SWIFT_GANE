@@ -176,9 +176,13 @@ __attribute__((always_inline)) INLINE static void feedback_first_init_spart(
 
   feedback_init_spart(sp);
   /* Initialize the reserved energy for HMXB feedback [GANE] */
-  sp->feedback_data.delta_E_reservoir = 0.f;
+  sp->feedback_data.delta_E_HMXB_reservoir = 0.f;
   /* Initialize the time since the last HMXB feedback event [GANE] */
   sp->feedback_data.time_since_last_HMXB_feedback = 0.f;
+  /* Initialize the reserved energy for SNII feedback [GANE] */
+  sp->feedback_data.delta_E_SN_reservoir = 0.f;
+  /* Initialize the time since the last SNII feedback event [GANE] */
+  sp->feedback_data.time_since_last_SNII_feedback = 0.f;
 }
 
 /**

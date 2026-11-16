@@ -173,8 +173,7 @@ INLINE static double interpolate_HMXB_energy(
   if (i < 0) {
     /* Only interpolate in the first table */
     E = interpolate_1d(HMXB_table->energy[0], j, d_age);
-  }
-  else {
+  } else {
     /* Interpolate energies from tables with indexes i and i + 1 using the two closest 
     cells to star_age: */
 
@@ -192,6 +191,21 @@ INLINE static double interpolate_HMXB_energy(
   }
 
   return E;
-  }
+}
+
+/**
+ * @brief Restore feedback tables (if applicable) after
+ * restart
+ *
+ * @param fp the #feedback_props structure
+ */
+void feedback_restore_HMXB_tables(struct feedback_props *fp) {
+
+  /* Allocate yield tables  */
+  allocate_HMXB_tables(fp);
+
+  /* Read the tables  */
+  read_HMXB_tables(fp);
+}
 
 #endif /* SWIFT_GANE_FEEDBACK_HMXB_TABLES_H */

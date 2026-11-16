@@ -107,6 +107,21 @@ enum eagle_feedback_SNIa_DTD {
 };
 
 /**
+ * @brief Stores tables to determine SNII feedback energies [GANE].
+ */
+struct SNII_table {
+
+  /* table of metallicities */
+  double *metallicity;
+
+  /* table of ages */
+  double *age;
+
+  /* table of energies depending on ages and metallicity */
+  double **energy;
+};
+
+/**
  * @brief Stores tables to determine HMXB feedback energies [GANE].
  */
 struct HMXB_table {
@@ -172,6 +187,17 @@ struct feedback_props {
 
   /* Table of lifetime values */
   struct lifetime_table lifetimes;
+
+  /* Are we using the SNII energy tables or the EAGLE model? [GANE] */
+  int with_SNII_tables;
+  
+  /* ------------- SNII feedback energy table [GANE] --------------- */
+
+  /* Table of SNII feedback energy values */
+  struct SNII_table SNII_energies;
+
+  /* Location of SNII tables */
+  char SNII_table_path[200];
 
   /* ------------- HMXB feedback energy table [GANE] --------------- */
 
@@ -249,8 +275,8 @@ struct feedback_props {
   float temp_to_u_factor;
 
   /*! Conversion from (table energy) x (stellar mass in internal units) to
-   *  internal energy units. Table energies are in 1e-7 erg / Msun [GANE] */
-  double HMXB_energy_to_internal;
+   *  internal energy units. Table energies are in erg / Msun [GANE] */
+  double feedback_energy_to_internal;
 
   /* ------------- Parameters for IMF --------------- */
 
@@ -279,6 +305,20 @@ struct feedback_props {
 
   /* ------------ SNe feedback properties ------------ */
 
+  /* GANE model */
+  /*! Energy fraction for SNII feedback */
+  float f_E_SNII;
+
+  /*! Type of SNII energy injection */
+  char SNII_injection_type[20];
+
+  /*! Minimum timestep for SNII feedback */
+  float min_SNII_timestep_Gyr;
+
+  /*! Minimum temperature change for SNII feedback */
+  float min_SNII_delta_T_K;
+
+  /* EAGLE model */
   /*! SNII feedback model: random, isotropic or minimum distance */
   enum SNII_feedback_models feedback_model;
 

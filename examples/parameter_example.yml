@@ -765,10 +765,16 @@ EAGLEFeedback:
 # Additional parameters for the GANE feedback model (use with GANEFeedback:)
   use_HMXB_feedback:                   0               # Activate the HMXB feedback model (1) or not (0)
   HMXB_filename:                       ./HMXB.hdf5     # Path to the HMXB energy tables.
-  HMXB_energy_fraction:                1.0             # Maximal fraction of energy applied in a HMXB feedback event.
+  HMXB_energy_fraction:                1.0             # Fraction of energy applied in a HMXB feedback event.
   HMXB_min_timestep_Gyr:               0.0             # (Optional) Minimal time-step in Gyr between two HMXB feedback events.
   HMXB_min_delta_T_K:                  3.16228e7       # (Optional) Minimal temperature increase in K needed to inject HMXB feedback energy.
   HMXB_injection_type:                 Uniform         # HMXB feedback injection type (Uniform or Stochastic).
+  use_SNII_tables:                     0               # Use SNII feedback energy from tables, instead of EAGLE model.
+  SNII_filename:                       ./SNII.hdf5     # Path to the SNII energy tables.
+  SNII_energy_fraction:                1.0             # Fraction of energy applied in a SNII feedback event.
+  SNII_min_timestep_Gyr:               0.0             # (Optional) Minimal time-step in Gyr between two SNII feedback events.
+  SNII_min_delta_T_K:                  3.16228e7       # (Optional) Minimal temperature increase in K needed to inject SNII feedback energy.
+  SNII_injection_type:                 Uniform         # SNII feedback injection type (Uniform or Stochastic).
 
 # GEAR feedback model
 GEARFeedback:

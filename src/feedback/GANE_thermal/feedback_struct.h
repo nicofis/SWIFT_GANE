@@ -130,8 +130,14 @@ struct feedback_spart_data {
   /* Instantiate ray structs for SNII [and HMXB ]isotropic feedback  */
   struct ray_data SNII_rays[eagle_SNII_feedback_num_of_rays];
 
+  /* Reserved energy for SNII feedback [GANE] */
+  float delta_E_SN_reservoir;
+
+  /* Time since the last SNII feedback event [GANE] */
+  float time_since_last_SNII_feedback;
+
   /* Reserved energy for HMXB feedback [GANE] */
-  float delta_E_reservoir;
+  float delta_E_HMXB_reservoir;
 
   /* Time since the last HMXB feedback event [GANE] */
   float time_since_last_HMXB_feedback;

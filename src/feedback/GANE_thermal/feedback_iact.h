@@ -392,7 +392,38 @@ runner_iact_nonsym_feedback_apply(
       si->feedback_data.to_distribute.SNII_num_of_thermal_energy_inj;
 
   /* Are we doing some SNII feedback? */
-  if (N_of_SNII_thermal_energy_inj > 0) {
+  if (N_of_SNII_thermal_energy_inj > 0
+    && si->feedback_data.to_distribute.SNII_delta_u > 0.f) { // [GANE]
+    
+    const char *SNII_injection_type = "Stochastic";
+    if (fb_props->with_SNII_tables) {
+        SNII_injection_type = fb_props->SNII_injection_type;
+    }
+    
+    if (strcmp(SNII_injection_type, "Uniform") == 0) {
+      /* If we are doing uniform injection, directly inject the feedback
+      energy */
+
+      /* Compute new energy of this particle */
+      const double u_init = hydro_get_physical_internal_energy(pj, xpj, cosmo);
+      const float delta_u = si->feedback_data.to_distribute.SNII_delta_u;
+      const double u_new = u_init + delta_u;
+
+      /* Inject energy into the particle */
+      hydro_set_physical_internal_energy(pj, xpj, cosmo, u_new);
+      hydro_set_drifted_physical_internal_energy(pj, cosmo, /*pfloor=*/NULL,
+                                                  u_new);
+
+      /* Impose maximal viscosity */
+      hydro_diffusive_feedback_reset(pj);
+
+      /* Mark this particle has having been heated by SNII feedback */
+      tracers_after_feedback(xpj);
+
+      /* Synchronize the particle on the timeline */
+      timestep_sync_part(pj);
+      } else {
+      /* If not uniform, do a stochastic injection. */
 
     int N_of_SNII_energy_inj_received_by_gas = 0;
 
@@ -429,6 +460,7 @@ runner_iact_nonsym_feedback_apply(
 
       /* Synchronize the particle on the timeline */
       timestep_sync_part(pj);
+      }
     }
   }
 

@@ -104,6 +104,10 @@ struct spart {
    *  in internal units [GANE] */
   float cumulative_HMXB_energy_ejected;
 
+  /*! Cumulative energy ejected via SNII thermal feedback since birth,
+   *  in internal units [GANE] */
+  float cumulative_SNII_energy_ejected;
+
   /*! The physical birth density */
   float birth_density;
 
