@@ -908,8 +908,8 @@ void feedback_props_init(struct feedback_props *fp,
   /* Read the tables  */
   read_HMXB_tables(fp);
 
-  /* Table energies are in 1e-7 erg / Msun (the 1e-7 is a temporary approximation) */
-  fp->HMXB_energy_to_internal = 1e-7 * fp->mass_to_solar_mass /
+  /* Table energies are in erg / Msun */
+  fp->HMXB_energy_to_internal = fp->mass_to_solar_mass /
                                 units_cgs_conversion_factor(us, UNIT_CONV_ENERGY);
 }
 
