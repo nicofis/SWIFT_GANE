@@ -37,15 +37,6 @@ enum SNII_feedback_models {
 };
 
 /**
- * @brief Form of SNII energy scaling with density and metallicity
- */
-enum SNII_energy_scalings {
-  SNII_scaling_EAGLE,      /*< Energy scaling as in EAGLE-Ref */
-  SNII_scaling_separable,  /*< Separable Z and n dependence */
-  SNII_scaling_independent /*< Independent Z and n dependence */
-};
-
-/**
  * @brief Stores AGB and SNII yield tables
  */
 struct yield_table {
@@ -107,24 +98,9 @@ enum eagle_feedback_SNIa_DTD {
 };
 
 /**
- * @brief Stores tables to determine SNII feedback energies [GANE].
+ * @brief Stores tables to determine SNII/HMXB feedback energies [GANE].
  */
-struct SNII_table {
-
-  /* table of metallicities */
-  double *metallicity;
-
-  /* table of ages */
-  double *age;
-
-  /* table of energies depending on ages and metallicity */
-  double **energy;
-};
-
-/**
- * @brief Stores tables to determine HMXB feedback energies [GANE].
- */
-struct HMXB_table {
+struct energy_table {
 
   /* table of metallicities */
   double *metallicity;
@@ -152,14 +128,11 @@ struct feedback_props {
   /*! Are we doing SNIa enrichment? */
   int with_SNIa_enrichment;
 
-  /*! Are we doing SNII feedback? */
-  int with_SNII_feedback;
-
   /*! Are we doing SNIa feedback? */
   int with_SNIa_feedback;
 
-  /*! Are we doing HMXB feedback? [GANE] */
-  int with_HMXB_feedback;
+  /*! Are we doing SNII/HMXB feedback? [GANE] */
+  int with_SNII_HMXB_feedback;
 
   /* ------------ Yield tables    ----------------- */
 
@@ -188,24 +161,13 @@ struct feedback_props {
   /* Table of lifetime values */
   struct lifetime_table lifetimes;
 
-  /* Are we using the SNII energy tables or the EAGLE model? [GANE] */
-  int with_SNII_tables;
-  
-  /* ------------- SNII feedback energy table [GANE] --------------- */
+  /* ------------- SNII/HMXB feedback energy table [GANE] --------------- */
 
-  /* Table of SNII feedback energy values */
-  struct SNII_table SNII_energies;
-
-  /* Location of SNII tables */
-  char SNII_table_path[200];
-
-  /* ------------- HMXB feedback energy table [GANE] --------------- */
-
-  /* Table of HMXB feedback energy values */
-  struct HMXB_table HMXB_energies;
+  /* Table of SNII/HMXB feedback energy values */
+  struct energy_table feedback_energies;
 
   /* Location of HMXB tables */
-  char HMXB_table_path[200];
+  char energy_table_path[200];
 
   /* ------------- SNII parameters    --------------- */
 
@@ -245,19 +207,19 @@ struct feedback_props {
   /*! Specific kinetic energy injected from AGB ejectas (in internal units). */
   float AGB_ejecta_specific_kinetic_energy;
 
-  /* ------------- HMXB parameters [GANE] ---------------- */
+  /* ------------- SNII/HMXB parameters [GANE] ---------------- */
 
-  /*! Energy fraction for HMXB feedback */
-  float f_E_HMXB;
+  /*! Energy fraction for SNII/HMXB feedback */
+  float f_E;
 
-  /*! Type of HMXB energy injection */
-  char HMXB_injection_type[20];
+  /*! Type of feedback energy injection */
+  char injection_type[20];
 
-  /*! Minimum timestep for HMXB feedback */
-  float min_HMXB_timestep_Gyr;
+  /*! Minimum timestep for SNII/HMXB feedback */
+  float min_timestep_Gyr;
 
-  /*! Minimum temperature change for HMXB feedback */
-  float min_HMXB_delta_T_K;
+  /*! Minimum temperature change for SNII/HMXB feedback */
+  float min_delta_T_K;
 
   /* ------------- Conversion factors --------------- */
 
@@ -305,20 +267,6 @@ struct feedback_props {
 
   /* ------------ SNe feedback properties ------------ */
 
-  /* GANE model */
-  /*! Energy fraction for SNII feedback */
-  float f_E_SNII;
-
-  /*! Type of SNII energy injection */
-  char SNII_injection_type[20];
-
-  /*! Minimum timestep for SNII feedback */
-  float min_SNII_timestep_Gyr;
-
-  /*! Minimum temperature change for SNII feedback */
-  float min_SNII_delta_T_K;
-
-  /* EAGLE model */
   /*! SNII feedback model: random, isotropic or minimum distance */
   enum SNII_feedback_models feedback_model;
 
@@ -335,59 +283,6 @@ struct feedback_props {
   /*! Log 10 of the maximal stellar mass considered for SNII feedback (in solar
    * masses) */
   double log10_SNII_max_mass_msun;
-
-  /*! Number of type II supernovae per solar mass */
-  float num_SNII_per_msun;
-
-  /*! Are we sampling the SNII life-times or using a fixed delay? */
-  int SNII_sampled_delay;
-
-  /*! Wind delay time for SNII when using a fixed delay */
-  double SNII_wind_delay;
-
-  /*! Temperature increase induced by SNe feedback */
-  float SNe_deltaT_desired;
-
-  /*! Energy released by one supernova type II in cgs units */
-  double E_SNII_cgs;
-
-  /*! Energy released by one supernova type II in internal units */
-  float E_SNII;
-
-  /*! Which model are we using for the SNII energy scaling? */
-  enum SNII_energy_scalings SNII_energy_scaling;
-
-  /*! Minimal energy fraction for supernova type II feedback */
-  double f_E_min;
-
-  /*! Maximal energy fraction for supernova type II feedback */
-  double f_E_max;
-
-  /*! Maximum energy increase due to density */
-  double SNII_delta_E_n;
-
-  /*! Pivot point for the metallicity dependance of the feedback energy fraction
-   * model */
-  double Z_0;
-
-  /*! Pivot point for the density dependance of the feedback energy fraction
-   * model */
-  double n_0_cgs;
-
-  /*! Slope of the density dependance of the feedback energy fraction model */
-  double n_n;
-
-  /*! Slope of the metallicity dependance of the feedback energy fraction model
-   */
-  double n_Z;
-
-  /*! Are we using the birth density to compute f_th or the properties at
-   * feedback time? */
-  int use_birth_density_for_f_th;
-
-  /*! Are we using the birth metallicity to compute f_th or the properties at
-   * feedback time? */
-  int use_birth_Z_for_f_th;
 
   /* ------------ Enrichment sampling properties ------------ */
 

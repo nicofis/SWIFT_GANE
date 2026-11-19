@@ -143,14 +143,12 @@ __attribute__((always_inline)) INLINE static void stars_first_init_spart(
     const int with_cosmology, const double scale_factor, const double time) {
 
   sp->time_bin = 0;
-  sp->f_E = -1.f;
-  sp->f_E_HMXB = -1.f; // [GANE]
+  sp->f_E = -1.f; // [EAGLE & GANE]
   sp->count_since_last_enrichment = -1;
   sp->number_of_heating_events = 0.;
   sp->number_of_SNII_events = 0;
-  sp->number_of_HMXB_events = 0; // [GANE]
-  sp->cumulative_HMXB_energy_ejected = 0.f; // [GANE]
-  sp->cumulative_SNII_energy_ejected = 0.f; // [GANE]
+  sp->number_of_feedback_events = 0; // [GANE]
+  sp->cumulative_feedback_energy_ejected = 0.f; // [GANE]
 
   if (stars_properties->overwrite_birth_time)
     sp->birth_time = stars_properties->spart_first_init_birth_time;

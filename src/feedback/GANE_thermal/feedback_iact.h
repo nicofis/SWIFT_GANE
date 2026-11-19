@@ -85,7 +85,7 @@ runner_iact_nonsym_feedback_density(const float r2, const float dx[3],
   if (rho != 0.f)
     si->feedback_data.to_collect.enrichment_weight_inv += wi / rho;
 
-  /* Choose SNII feedback model */
+  /* Choose SNII feedback model [GANE: we leave these because it models the ray structure]*/
   switch (fb_props->feedback_model) {
     case SNII_isotropic_model: {
 
@@ -384,29 +384,26 @@ runner_iact_nonsym_feedback_apply(
   hydro_set_drifted_physical_internal_energy(pj, cosmo, /*pfloor=*/NULL,
                                              u_new_enrich);
 
-  /* SNII stochastic feedback */
+  /* Finally, SNII and/or HMXB stellar feedback [GANE] */
 
-  /* Get the total number of SNII thermal energy injections per stellar
+  /* Get the total number of thermal energy injections per stellar
    * particle at this time-step */
-  const int N_of_SNII_thermal_energy_inj =
-      si->feedback_data.to_distribute.SNII_num_of_thermal_energy_inj;
+  const int N_of_thermal_energy_inj =
+      si->feedback_data.to_distribute.num_of_thermal_energy_inj;
 
-  /* Are we doing some SNII feedback? */
-  if (N_of_SNII_thermal_energy_inj > 0
-    && si->feedback_data.to_distribute.SNII_delta_u > 0.f) { // [GANE]
+  /* Are we doing some SNII/HMXB stellar feedback? */
+  if (N_of_thermal_energy_inj > 0
+    && si->feedback_data.to_distribute.delta_u > 0.f) { // [GANE]
     
-    const char *SNII_injection_type = "Stochastic";
-    if (fb_props->with_SNII_tables) {
-        SNII_injection_type = fb_props->SNII_injection_type;
-    }
+    const char *injection_type = fb_props->injection_type;
     
-    if (strcmp(SNII_injection_type, "Uniform") == 0) {
+    if (strcmp(injection_type, "Uniform") == 0) {
       /* If we are doing uniform injection, directly inject the feedback
       energy */
 
       /* Compute new energy of this particle */
       const double u_init = hydro_get_physical_internal_energy(pj, xpj, cosmo);
-      const float delta_u = si->feedback_data.to_distribute.SNII_delta_u;
+      const float delta_u = si->feedback_data.to_distribute.delta_u;
       const double u_new = u_init + delta_u;
 
       /* Inject energy into the particle */
@@ -417,30 +414,32 @@ runner_iact_nonsym_feedback_apply(
       /* Impose maximal viscosity */
       hydro_diffusive_feedback_reset(pj);
 
-      /* Mark this particle has having been heated by SNII feedback */
-      tracers_after_feedback(xpj);
+      /* Mark this particle has having been heated by stellar feedback */
+      tracers_after_stellar_feedback(xpj);
 
       /* Synchronize the particle on the timeline */
       timestep_sync_part(pj);
-      } else {
-      /* If not uniform, do a stochastic injection. */
+      } 
+    
+    else if (strcmp(injection_type, "Stochastic") == 0) {
+      /* If we are doing stochastic injection, do the same as SNII from EAGLE. */
 
-    int N_of_SNII_energy_inj_received_by_gas = 0;
+    int N_of_energy_inj_received_by_gas = 0;
 
     /* Find out how many rays this gas particle has received. */
-    for (int i = 0; i < N_of_SNII_thermal_energy_inj; i++) {
+    for (int i = 0; i < N_of_thermal_energy_inj; i++) {
       if (pj->id == si->feedback_data.SNII_rays[i].id_min_length)
-        N_of_SNII_energy_inj_received_by_gas++;
+        N_of_energy_inj_received_by_gas++;
     }
 
-    /* If the number of SNII energy injections > 0, do SNII feedback */
-    if (N_of_SNII_energy_inj_received_by_gas > 0) {
+    /* If the number of energy injections > 0, do stellar feedback */
+    if (N_of_energy_inj_received_by_gas > 0) {
 
       /* Compute new energy of this particle */
       const double u_init = hydro_get_physical_internal_energy(pj, xpj, cosmo);
-      const float delta_u = si->feedback_data.to_distribute.SNII_delta_u;
+      const float delta_u = si->feedback_data.to_distribute.delta_u;
       const double u_new =
-          u_init + delta_u * (float)N_of_SNII_energy_inj_received_by_gas;
+          u_init + delta_u * (float)N_of_energy_inj_received_by_gas;
 
       /* Inject energy into the particle */
       hydro_set_physical_internal_energy(pj, xpj, cosmo, u_new);
@@ -450,8 +449,8 @@ runner_iact_nonsym_feedback_apply(
       /* Impose maximal viscosity */
       hydro_diffusive_feedback_reset(pj);
 
-      /* Mark this particle has having been heated by supernova feedback */
-      tracers_after_feedback(xpj);
+      /* Mark this particle has having been heated by stellar feedback */
+      tracers_after_stellar_feedback(xpj);
 
       /* message( */
       /*     "We did some heating! id %llu star id %llu probability %.5e " */
@@ -462,88 +461,9 @@ runner_iact_nonsym_feedback_apply(
       timestep_sync_part(pj);
       }
     }
-  }
-
-  /* Finally, HMXB feedback [GANE] */
-
-  /* Get the total number of HMXB thermal energy injections per stellar
-   * particle at this time-step */
-  const int N_of_HMXB_thermal_energy_inj =
-      si->feedback_data.to_distribute.HMXB_num_of_thermal_energy_inj;
-
-  /* Are we doing some HMXB feedback? */
-  if (N_of_HMXB_thermal_energy_inj > 0 
-    && si->feedback_data.to_distribute.HMXB_delta_u > 0.f) {
-
-    const char *HMXB_injection_type = fb_props->HMXB_injection_type;
-    
-    if (strcmp(HMXB_injection_type, "Uniform") == 0) {
-      /* If we are doing uniform injection, directly inject the feedback
-      energy */
-
-      /* Compute new energy of this particle */
-      const double u_init = hydro_get_physical_internal_energy(pj, xpj, cosmo);
-      const float delta_u = si->feedback_data.to_distribute.HMXB_delta_u;
-      const double u_new = u_init + delta_u;
-
-      /* Inject energy into the particle */
-      hydro_set_physical_internal_energy(pj, xpj, cosmo, u_new);
-      hydro_set_drifted_physical_internal_energy(pj, cosmo, /*pfloor=*/NULL,
-                                                  u_new);
-
-      /* Impose maximal viscosity */
-      hydro_diffusive_feedback_reset(pj);
-
-      /* Mark this particle has having been heated by HMXB feedback */
-      tracers_after_HMXB_feedback(xpj);
-
-      /* Synchronize the particle on the timeline */
-      timestep_sync_part(pj);
-      }
-
-    else if (strcmp(HMXB_injection_type, "Stochastic") == 0) {
-      /* If we are doing stochastic injection, do the same as SNII. */
-      
-      int N_of_HMXB_energy_inj_received_by_gas = 0;
-
-      /* Find out how many rays this gas particle has received. */
-      for (int i = 0; i < N_of_HMXB_thermal_energy_inj; i++) {
-        if (pj->id == si->feedback_data.SNII_rays[i].id_min_length) /* Nos acoplamos al SNII_rays */
-          N_of_HMXB_energy_inj_received_by_gas++;
-      }
-
-      /* If the number of HMXB energy injections > 0, do HMXB feedback */
-      if (N_of_HMXB_energy_inj_received_by_gas > 0) {
-
-        /* Compute new energy of this particle */
-        const double u_init = hydro_get_physical_internal_energy(pj, xpj, cosmo);
-        const float delta_u = si->feedback_data.to_distribute.HMXB_delta_u;
-        const double u_new =
-            u_init + delta_u * (float)N_of_HMXB_energy_inj_received_by_gas;
-
-        /* Inject energy into the particle */
-        hydro_set_physical_internal_energy(pj, xpj, cosmo, u_new);
-        hydro_set_drifted_physical_internal_energy(pj, cosmo, /*pfloor=*/NULL,
-                                                  u_new);
-
-        /* Impose maximal viscosity */
-        hydro_diffusive_feedback_reset(pj);
-
-        /* Mark this particle has having been heated by HMXB feedback */
-        tracers_after_HMXB_feedback(xpj);
-
-        /* message( */
-        /*     "We did some heating! id %llu star id %llu probability %.5e " */
-        /*     "random_num %.5e du %.5e du/ini %.5e", */
-        /*     pj->id, si->id, 0., 0., delta_u, delta_u / u_init); */
-
-        /* Synchronize the particle on the timeline */
-        timestep_sync_part(pj);
-      }
-    }
 
     else {
-      error("Unknown HMXB injection type: %s", HMXB_injection_type);
+      error("Unknown feedback injection type: %s", injection_type);
     }
   }
 }

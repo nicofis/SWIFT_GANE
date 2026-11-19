@@ -149,10 +149,10 @@ __attribute__((always_inline)) INLINE static int tracers_write_particles(
 
   /* [GANE] */
   list[3] =
-      io_make_output_field("HeatedByHMXBFeedback", INT, 1, UNIT_CONV_NO_UNITS,
-                           0, xparts, tracers_data.hit_by_HMXB_feedback,
+      io_make_output_field("HeatedByStellarFeedback", INT, 1, UNIT_CONV_NO_UNITS,
+                           0, xparts, tracers_data.hit_by_SNII_HMXB_feedback,
                            "Flags the particles that have been directly hit by "
-                           "a HMXB feedback event at some point in the past. "
+                           "a SNII/HMXB feedback event at some point in the past. "
                            "If > 0, contains the number of individual events.");
 
   list[4] =
@@ -319,10 +319,10 @@ __attribute__((always_inline)) INLINE static int tracers_write_sparticles(
 
   /* [GANE] */
   list[3] =
-      io_make_output_field("HeatedByHMXBFeedback", INT, 1, UNIT_CONV_NO_UNITS,
-                           0, sparts, tracers_data.hit_by_HMXB_feedback,
+      io_make_output_field("HeatedByStellarFeedback", INT, 1, UNIT_CONV_NO_UNITS,
+                           0, sparts, tracers_data.hit_by_SNII_HMXB_feedback,
                            "Flags the particles that have been directly hit by "
-                           "a HMXB feedback event at some point in the past "
+                           "a SNII/HMXB feedback event at some point in the past "
                            "when the particle was still a gas particle.");
 
   list[4] =

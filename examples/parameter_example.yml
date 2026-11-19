@@ -727,6 +727,7 @@ EAGLEFeedback:
   SNII_min_mass_Msun:                  6.0             # Minimal mass considered for SNII stars in solar masses.
   SNII_max_mass_Msun:                100.0             # Maximal mass considered for SNII stars in solar masses.
   SNII_feedback_model:                 Random          # Feedback modes: Random, Isotropic, MinimumDistance, MinimumDensity
+  # vvv These parameters are ignored in GANE model vvv
   SNII_sampled_delay:                  1               # Sample the SNII lifetimes to do feedback.
   SNII_wind_delay_Gyr:                 0.03            # Time in Gyr between a star's birth and the SNII thermal feedback event when not sampling.
   SNII_delta_T_K:                      3.16228e7       # Change in temperature to apply to the gas particle in a SNII thermal feedback event in Kelvin.
@@ -744,6 +745,7 @@ EAGLEFeedback:
   SNII_energy_fraction_sigma_n:        0.5             # Transition width for the (birth) density dependence of the SNII energy fraction. Specify this or n_n, both are not simultaneously accepted.
   SNII_energy_fraction_use_birth_density: 0            # Are we using the density at birth to compute f_E or at feedback time?
   SNII_energy_fraction_use_birth_metallicity: 0        # Are we using the metallicity at birth to compute f_E or at feedback time?
+  # ^^^ These parameters are ignored in GANE model ^^^
   SNIa_DTD:                            PowerLaw        # Functional form of the SNIa delay time distribution Two choices: 'PowerLaw' or 'Exponential'.
   SNIa_DTD_delay_Gyr:                  0.04            # Stellar age after which SNIa start in Gyr (40 Myr corresponds to stars ~ 8 Msun).
   SNIa_DTD_power_law_norm_p_Msun:      0.0012          # Normalization of the SNIa delay time distribution in the power-law DTD case (in Msun^-1).
@@ -763,18 +765,13 @@ EAGLEFeedback:
   SNII_yield_factor_Silicon:           1.0             # (Optional) Correction factor to apply to the Silicon yield from the SNII channel.
   SNII_yield_factor_Iron:              0.5             # (Optional) Correction factor to apply to the Iron yield from the SNII channel.
 # Additional parameters for the GANE feedback model (use with GANEFeedback:)
-  use_HMXB_feedback:                   0               # Activate the HMXB feedback model (1) or not (0)
-  HMXB_filename:                       ./HMXB.hdf5     # Path to the HMXB energy tables.
-  HMXB_energy_fraction:                1.0             # Fraction of energy applied in a HMXB feedback event.
-  HMXB_min_timestep_Gyr:               0.0             # (Optional) Minimal time-step in Gyr between two HMXB feedback events.
-  HMXB_min_delta_T_K:                  3.16228e7       # (Optional) Minimal temperature increase in K needed to inject HMXB feedback energy.
-  HMXB_injection_type:                 Uniform         # HMXB feedback injection type (Uniform or Stochastic).
-  use_SNII_tables:                     0               # Use SNII feedback energy from tables, instead of EAGLE model.
-  SNII_filename:                       ./SNII.hdf5     # Path to the SNII energy tables.
-  SNII_energy_fraction:                1.0             # Fraction of energy applied in a SNII feedback event.
-  SNII_min_timestep_Gyr:               0.0             # (Optional) Minimal time-step in Gyr between two SNII feedback events.
-  SNII_min_delta_T_K:                  3.16228e7       # (Optional) Minimal temperature increase in K needed to inject SNII feedback energy.
-  SNII_injection_type:                 Uniform         # SNII feedback injection type (Uniform or Stochastic).
+  use_SNII_HMXB_feedback:              0                # Activate the SNII/HMXB GANE feedback model (1) or not (0)
+  yield_filename:                      ./yieldtables/   # Path to the directory containing the EAGLE yield tables (use this instead of EAGLEFeedback:filename)
+  energy_filename:                     ./SNII_HMXB.hdf5 # Path to the SNII/HMXB energy tables.
+  SNII_HMXB_energy_fraction:           1.0              # Fraction of energy applied in a SNII/HMXB feedback event.
+  SNII_HMXB_min_timestep_Gyr:          0.0              # (Optional) Minimal time-step in Gyr between two SNII/HMXB feedback events.
+  SNII_HMXB_min_delta_T_K:             3.16228e7        # (Optional) Minimal temperature increase in K needed to inject SNII/HMXB feedback energy.
+  SNII_HMXB_injection_type:            Stochastic       # SNII/HMXB feedback injection type (Uniform or Stochastic).
 
 # GEAR feedback model
 GEARFeedback:
