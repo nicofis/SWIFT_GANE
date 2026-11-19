@@ -5,7 +5,7 @@ cd "$(dirname "$0")"
 
 # Add the official SWIFT repository as 'upstream' the first time
 git remote get-url upstream >/dev/null 2>&1 || \
-  git remote add upstream https://gitlab.cosma.dur.ac.uk/swift/swiftsim.git
+  git remote add upstream https://github.com/SWIFTSIM/SWIFT.git
 
 # Refuse to run with uncommitted changes
 if ! git diff --quiet || ! git diff --cached --quiet; then
