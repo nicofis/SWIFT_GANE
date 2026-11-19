@@ -1276,7 +1276,7 @@ INLINE static void sink_prepare_part_sink_formation_gas_criteria(
                        pj->v[2] - pi->v[2]};
 
   /* Calculate the velocity with the Hubble flow */
-  const float v_plus_H_flow[3] = {a2H * dx[0] + dv[0], -a2H * dx[1] + dv[1],
+  const float v_plus_H_flow[3] = {a2H * dx[0] + dv[0], a2H * dx[1] + dv[1],
                                   a2H * dx[2] + dv[2]};
 
   /* Compute the physical relative velocity between the particles */
@@ -1360,7 +1360,7 @@ INLINE static void sink_prepare_part_sink_formation_sink_criteria(
 
   /* Determine if the sink is dead, i.e. if its age is bigger than the
      age_threshold_unlimited */
-  const int sink_age = sink_get_sink_age(sj, with_cosmology, cosmo, time);
+  const double sink_age = sink_get_sink_age(sj, with_cosmology, cosmo, time);
   char is_dead = sink_age > sink_props->age_threshold_unlimited;
 
   /* If the sink is dead, do not check the criteria for the si - p pair. */

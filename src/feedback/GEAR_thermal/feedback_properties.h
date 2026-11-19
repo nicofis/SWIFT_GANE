@@ -119,6 +119,11 @@ __attribute__((always_inline)) INLINE static void feedback_props_init(
   /* Supernovae energy efficiency */
   double e_efficiency =
       parser_get_param_double(params, "GEARFeedback:supernovae_efficiency");
+
+  if (e_efficiency < 0.0)
+    error("GEARFeedback:supernovae_efficiency must be >= 0 (got %g).",
+          e_efficiency);
+
   fp->supernovae_efficiency = e_efficiency;
 
   /* Activate the stellar wind feedback */
@@ -133,6 +138,10 @@ __attribute__((always_inline)) INLINE static void feedback_props_init(
         params, "GEARFeedback:stellar_winds_efficiency");
   }
 
+  if (w_efficiency < 0.0)
+    error("GEARFeedback:stellar_winds_efficiency must be >= 0 (got %g).",
+          w_efficiency);
+
   fp->winds_efficiency = w_efficiency;
 
   /* filename of the chemistry tables. */
@@ -143,7 +152,7 @@ __attribute__((always_inline)) INLINE static void feedback_props_init(
   stellar_evolution_props_init(&fp->stellar_model, phys_const, us, params,
                                cosmo, fp->with_stellar_wind_feedback);
 
-  /* Read the metallicity threashold */
+  /* Read the metallicity threshold */
   fp->imf_transition_metallicity = parser_get_opt_param_float(
       params, "GEARFeedback:imf_transition_metallicity", 0);
 

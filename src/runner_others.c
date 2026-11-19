@@ -301,9 +301,9 @@ void runner_do_star_formation_sink(struct runner *r, struct cell *c,
                                        cooling, cosmo, with_cosmology,
                                        phys_const, us, displacement);
 
-          sp->x_diff[0] += displacement[0];
-          sp->x_diff[1] += displacement[1];
-          sp->x_diff[2] += displacement[2];
+          sp->x_diff[0] -= displacement[0];
+          sp->x_diff[1] -= displacement[1];
+          sp->x_diff[2] -= displacement[2];
 
           /* Update the Star formation history */
           star_formation_logger_log_new_spart(sp, &c->stars.sfh);
@@ -570,9 +570,9 @@ void runner_do_star_formation(struct runner *r, struct cell *c,
                     hydro_props, us, cooling, e->chemistry, part_converted,
                     displacement);
 
-                sp->x_diff[0] += displacement[0];
-                sp->x_diff[1] += displacement[1];
-                sp->x_diff[2] += displacement[2];
+                sp->x_diff[0] -= displacement[0];
+                sp->x_diff[1] -= displacement[1];
+                sp->x_diff[2] -= displacement[2];
 
                 /* Update the Star formation history */
                 star_formation_logger_log_new_spart(sp, &c->stars.sfh);
@@ -903,10 +903,17 @@ void runner_do_end_grav_force(struct runner *r, struct cell *c, int timer) {
 
     /* Potential normalisation in the case of periodic gravity */
     float potential_normalisation = 0.;
+    float potential_self = 0.;
     if (periodic && with_self_gravity) {
       const double volume = s->dim[0] * s->dim[1] * s->dim[2];
       const double r_s = e->mesh->r_s;
       potential_normalisation = 4. * M_PI * e->total_mass * r_s * r_s / volume;
+
+      /* The mesh potential of a particle includes the potential of its own
+       * mass smoothed on the scale r_s, -m / (sqrt(pi) r_s) at the position
+       * of the particle. This has no counterpart in the tree. */
+      const double r_s_inv = e->mesh->r_s_inv;
+      potential_self = 0.5 * M_2_SQRTPI * r_s_inv;
     }
 
     const int gcount = c->grav.count;
@@ -920,8 +927,12 @@ void runner_do_end_grav_force(struct runner *r, struct cell *c, int timer) {
 
       if (gpart_is_active(gp, e)) {
 
+        /* Correction to the potential of this particle */
+        const float potential_correction =
+            potential_normalisation + potential_self * gp->mass;
+
         /* Finish the force calculation */
-        gravity_end_force(gp, G_newton, potential_normalisation, periodic,
+        gravity_end_force(gp, G_newton, potential_correction, periodic,
                           with_self_gravity);
 
         /* Get the ID of the gpart */
@@ -969,10 +980,38 @@ void runner_do_end_grav_force(struct runner *r, struct cell *c, int timer) {
           /* Let's add a self interaction to simplify the count */
           gp->num_interacted++;
 
-          /* Check that this gpart has interacted with all the other
-           * particles (via direct or multipoles) in the box */
-          if (gp->num_interacted !=
-              e->total_nr_gparts - e->count_inhibited_gparts) {
+          /* We need 2 different checks depending on whether we are in a
+           * periodic or non-periodic run. In the latter we can have gparts
+           * removed if they leave the box and in that case P2P interactions
+           * will ignore the inhibited particles that have left the box and
+           * multipole interactions will not.
+           * TODO: [Will] This can be fixed by removing the particles leaving
+           * the volume only at rebuild but we need to check that won't
+           * negatively impact anyone. This removal at rebuild will also remove
+           * the technically incorrect issue that multipole interactions can
+           * account for a particle the simulation has "removed" */
+          int interaction_check = 0;
+          if (e->s->periodic) {
+
+            /* In periodic runs we expect all g-particles to have interacted
+             * with all particles. */
+            interaction_check = (gp->num_interacted != e->total_nr_gparts);
+
+          } else {
+
+            /* In non-periodic runs we need to use an acceptable range between
+             * all particles and all particles minus the number of inhibited
+             * particles. */
+            const int n_removed = e->s->nr_inhibited_gparts;
+            const int min_interactions = e->total_nr_gparts - n_removed;
+            const int max_interactions = e->total_nr_gparts;
+            interaction_check = (gp->num_interacted < min_interactions ||
+                                 gp->num_interacted > max_interactions);
+          }
+
+          /* Check that this gpart has interacted with all the other particles
+           * (via direct or multipoles) in the box.*/
+          if (interaction_check) {
 
 #ifdef SWIFT_GRAVITY_FORCE_CHECKS
             /* If we have the gravity force checks enabled, we print more
@@ -991,11 +1030,11 @@ void runner_do_end_grav_force(struct runner *r, struct cell *c, int timer) {
                 "g-particle (id=%lld, type=%s) did not interact "
                 "gravitationally with all other gparts "
                 "gp->num_interacted=%lld, total_gparts=%lld, missing=%lld "
-                "(local num_gparts=%zd inhibited_gparts=%lld) "
+                "(local num_gparts=%zd inhibited_gparts=%zd) "
                 "(cell info: c->depth=%d c->grav.super->depth=%d)",
                 id, part_type_names[gp->type], gp->num_interacted,
                 e->total_nr_gparts, e->total_nr_gparts - gp->num_interacted,
-                e->s->nr_gparts, e->count_inhibited_gparts, c->depth,
+                e->s->nr_gparts, e->s->nr_inhibited_gparts, c->depth,
                 c->grav.super->depth);
           }
         }

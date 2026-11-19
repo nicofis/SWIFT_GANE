@@ -56,6 +56,7 @@
 
 /* Global variables. */
 int cell_next_tag = 0;
+int cell_max_tag = cell_max_tag_default;
 
 /** List of cell pairs for sub-cell recursion. For any sid, the entries in
  * this array contain the number of sub-cell pairs and the indices and sid
@@ -440,6 +441,13 @@ int cell_link_foreign_gparts(struct cell *c,
 #endif
     return counts;
   } else {
+    /* No data is received at this level. The pointer is only a placeholder
+     * (the start of the progeny's data, which does not hold c->grav.count
+     * particles). The gravity tasks never read the particles of a foreign
+     * cell above the level of its recv task (interactions there use the
+     * multipoles) so this is safe. Unlike the FOF version,  the pointers can't
+     * be NULL: cell_unpack_grav_counts() re-derives parts_foreign from
+     * parts_foreign_rebuild at every level between rebuilds. */
     c->grav.parts_foreign = gparts_foreign;
     c->grav.parts_foreign_rebuild = gparts_foreign;
   }
@@ -493,8 +501,11 @@ int cell_link_foreign_fof_gparts(struct cell *c,
 #endif
     return counts;
   } else {
-    c->grav.parts_fof_foreign = gparts_fof_foreign;
-    c->grav.parts_fof_foreign_rebuild = gparts_fof_foreign;
+    /* No data is received at this level. Only cells at or below a level with
+     * a recv task get their particles, so leave a NULL pointer here. Reading
+     * the particles of a cell that is not covered will then be caught. */
+    c->grav.parts_fof_foreign = NULL;
+    c->grav.parts_fof_foreign_rebuild = NULL;
   }
 
   /* Go deeper to find the level where the tasks are */
@@ -534,6 +545,8 @@ void cell_unlink_foreign_particles(struct cell *c) {
 #endif
 
   c->grav.parts = NULL;
+  c->grav.parts_fof_foreign = NULL;
+  c->grav.parts_fof_foreign_rebuild = NULL;
   c->hydro.parts = NULL;
   c->stars.parts = NULL;
   c->black_holes.parts = NULL;
@@ -651,12 +664,16 @@ void cell_sanitize(struct cell *c, int treated) {
 
     /* Apply it */
     for (int i = 0; i < count; ++i) {
-      if (parts[i].h == 0.f || parts[i].h > upper_h_max)
+      if (parts[i].h == 0.f || parts[i].h > upper_h_max) {
         parts[i].h = upper_h_max;
+        parts[i].depth_h = c->depth;
+      }
     }
     for (int i = 0; i < scount; ++i) {
-      if (sparts[i].h == 0.f || sparts[i].h > upper_h_max)
+      if (sparts[i].h == 0.f || sparts[i].h > upper_h_max) {
         sparts[i].h = upper_h_max;
+        sparts[i].depth_h = c->depth;
+      }
     }
   }
 
@@ -2044,26 +2061,13 @@ void cell_check_grav_mesh_pairs(struct cell *c, struct engine *e) {
     return;
   }
 
-  /* Compute maximal distance where we can expect a direct interaction */
-  const float distance = gravity_M2L_min_accept_distance(
-      e->gravity_properties, sqrtf(3) * cells[0].width[0], s->max_softening,
-      s->min_a_grav, s->max_mpole_power, /*periodic=*/1);
-
-  /* Convert the maximal search distance to a number of cells */
-  const int delta = max((int)(sqrt(3) * distance / cells[0].width[0]) + 1, 2);
-  int delta_m = delta;
-  int delta_p = delta;
-
-  /* Special case where every cell is in range of every other one */
-  if (delta >= cdim[0] / 2) {
-    if (cdim[0] % 2 == 0) {
-      delta_m = cdim[0] / 2;
-      delta_p = cdim[0] / 2 - 1;
-    } else {
-      delta_m = cdim[0] / 2;
-      delta_p = cdim[0] / 2;
-    }
-  }
+  /* Check the same range used to create the gravity pair tasks. */
+#ifdef SWIFT_DEBUG_CHECKS
+  if (s->grav_P2P_search_delta_m == 0)
+    error("Gravity pair search range has not been set");
+#endif
+  const int delta_m = s->grav_P2P_search_delta_m;
+  const int delta_p = s->grav_P2P_search_delta_p;
 
   /* Get the cell index and integer indices in the top-level grid */
   const int cid = c - cells;

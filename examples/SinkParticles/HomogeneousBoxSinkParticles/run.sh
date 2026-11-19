@@ -1,7 +1,9 @@
 #!/bin/bash
 
 # make run.sh fail if a subcommand fails
-set -e
+set -eo pipefail
+
+scripts_location="../../GEAR_ICs_and_SCRIPTS"
 
 n_ranks=${n_ranks:=0}      # Number of ranks to use
 n_threads=${n_threads:=8}  #Number of threads to use
@@ -14,7 +16,7 @@ n_sinks=${n_sinks:=10}  #Number of sinks
 # Remove the ICs
 if [ -e ICs_homogeneous_box.hdf5 ]
 then
-    rm ICs_homogeneous_box.hdf5
+    rm -f ICs_homogeneous_box.hdf5
 fi
 
 #Create the ICs if they do not exist
@@ -29,14 +31,14 @@ fi
 if [ ! -e CloudyData_UVB=HM2012.h5 ]
 then
     echo "Fetching the Cloudy tables required by Grackle..."
-    ./getGrackleCoolingTable.sh
+    $scripts_location/getGrackleCoolingTable.sh
 fi
 
 
 if [ ! -e POPIIsw.h5 ]
 then
     echo "Fetching the chemistry tables..."
-    ./getChemistryTable.sh
+    $scripts_location/getChemistryTable.sh
 fi
 
 
@@ -45,10 +47,10 @@ DIR=snap #First test of units conversion
 if [ -d "$DIR" ];
 then
     echo "$DIR directory exists. Its content will be removed."
-    rm -r $DIR
+    rm -rf $DIR
 else
     echo "$DIR directory does not exists. It will be created."
-    mkdir $DIR
+    mkdir -p $DIR
 fi
 
 if [[ $n_ranks -gt 0 ]]; then

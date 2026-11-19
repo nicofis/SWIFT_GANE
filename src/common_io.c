@@ -917,6 +917,69 @@ size_t io_sizeof_type(enum IO_DATA_TYPE type) {
   }
 }
 
+/**
+ * @brief Fill a buffer with the default value of an optional field.
+ *
+ * Each of the @a dimension elements is written at the width of @a type, so the
+ * function writes exactly dimension * io_sizeof_type(type) bytes.
+ *
+ * @param dest The buffer to fill.
+ * @param type The #IO_DATA_TYPE of the field.
+ * @param dimension The number of elements per particle.
+ * @param value The default value.
+ */
+void io_fill_default_value(void *dest, enum IO_DATA_TYPE type, int dimension,
+                           double value) {
+
+#define IO_FILL_DEFAULT(ctype)                               \
+  {                                                          \
+    ctype *d = (ctype *)dest;                                \
+    for (int i = 0; i < dimension; ++i) d[i] = (ctype)value; \
+  }
+
+  switch (type) {
+    case INT:
+      IO_FILL_DEFAULT(int);
+      break;
+    case UINT8:
+      IO_FILL_DEFAULT(uint8_t);
+      break;
+    case UINT:
+      IO_FILL_DEFAULT(unsigned int);
+      break;
+    case UINT64:
+      IO_FILL_DEFAULT(uint64_t);
+      break;
+    case LONG:
+      IO_FILL_DEFAULT(long);
+      break;
+    case ULONG:
+      IO_FILL_DEFAULT(unsigned long);
+      break;
+    case LONGLONG:
+      IO_FILL_DEFAULT(long long);
+      break;
+    case ULONGLONG:
+      IO_FILL_DEFAULT(unsigned long long);
+      break;
+    case FLOAT:
+      IO_FILL_DEFAULT(float);
+      break;
+    case DOUBLE:
+      IO_FILL_DEFAULT(double);
+      break;
+    case CHAR:
+      IO_FILL_DEFAULT(char);
+      break;
+    case SIZE_T:
+      IO_FILL_DEFAULT(size_t);
+      break;
+    default:
+      error("Unknown type");
+  }
+#undef IO_FILL_DEFAULT
+}
+
 void io_prepare_dm_gparts_mapper(void *restrict data, int Ndm, void *dummy) {
 
   struct gpart *restrict gparts = (struct gpart *)data;
@@ -1703,14 +1766,24 @@ void io_get_snapshot_filename(char filename[FILENAME_BUFFER_SIZE],
   }
 
   /* Are we using a sub-dir? */
+  int len_file, len_xmf;
   if (strlen(subdir) > 0) {
-    sprintf(filename, "%s/%s_%0*d.hdf5", subdir, basename, number_digits,
-            snap_number);
-    sprintf(xmf_filename, "%s/%s.xmf", default_subdir, default_basename);
+    len_file = snprintf(filename, FILENAME_BUFFER_SIZE, "%s/%s_%0*d.hdf5",
+                        subdir, basename, number_digits, snap_number);
+    len_xmf = snprintf(xmf_filename, FILENAME_BUFFER_SIZE, "%s/%s.xmf",
+                       default_subdir, default_basename);
   } else {
-    sprintf(filename, "%s_%0*d.hdf5", basename, number_digits, snap_number);
-    sprintf(xmf_filename, "%s.xmf", default_basename);
+    len_file = snprintf(filename, FILENAME_BUFFER_SIZE, "%s_%0*d.hdf5",
+                        basename, number_digits, snap_number);
+    len_xmf = snprintf(xmf_filename, FILENAME_BUFFER_SIZE, "%s.xmf",
+                       default_basename);
   }
+  if (len_file < 0 || len_file >= FILENAME_BUFFER_SIZE || len_xmf < 0 ||
+      len_xmf >= FILENAME_BUFFER_SIZE)
+    error(
+        "Snapshot file name too long (max %d characters). Shorten "
+        "Snapshots:subdir and/or Snapshots:basename.",
+        FILENAME_BUFFER_SIZE - 1);
 }
 /**
  * @brief Set all ParticleIDs for each gpart to 1.
