@@ -265,11 +265,11 @@ __attribute__((always_inline)) INLINE static void feedback_will_do_feedback(
     struct spart *sp, const struct feedback_props *feedback_props,
     const int with_cosmology, const struct cosmology *cosmo, const double time,
     const struct unit_system *us, const struct phys_const *phys_const,
-    const integertime_t ti_current, const double time_base) {
+    const integertime_t ti_current, const double time_base, const timebin_t old_time_bin) {
 
   /* Special case for new-born stars */
   if (with_cosmology) {
-    if (sp->birth_scale_factor == (float)cosmo->a) {
+    if (sp->birth_scale_factor == cosmo->a) {
 
       /* Set the counter to "let's do enrichment" */
       sp->count_since_last_enrichment = 0;
@@ -278,7 +278,7 @@ __attribute__((always_inline)) INLINE static void feedback_will_do_feedback(
       return;
     }
   } else {
-    if (sp->birth_time == (float)time) {
+    if (sp->birth_time == time) {
 
       /* Set the counter to "let's do enrichment" */
       sp->count_since_last_enrichment = 0;
