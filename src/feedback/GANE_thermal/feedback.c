@@ -236,7 +236,8 @@ void compute_stellar_evolution(const struct feedback_props *feedback_props,
 #endif
 
   /* Compute properties of the SNII/HMXB feedback model [GANE] */
-  if (feedback_props->with_SNII_HMXB_feedback) {
+  /* Check first if the star hasn't died yet */
+  if (feedback_props->with_SNII_HMXB_feedback && star_age_Gyr < 0.05) {
     compute_stellar_feedback(sp, star_age_Gyr, dt_Gyr, ngb_Number, 
                           ngb_gas_mass, feedback_props);
   }
