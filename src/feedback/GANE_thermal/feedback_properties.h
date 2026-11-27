@@ -98,7 +98,7 @@ enum eagle_feedback_SNIa_DTD {
 };
 
 /**
- * @brief Stores tables to determine SNII/HMXB feedback energies [GANE].
+ * @brief Stores tables to determine SNII & HMXB feedback energies [GANE].
  */
 struct energy_table {
 
@@ -131,8 +131,11 @@ struct feedback_props {
   /*! Are we doing SNIa feedback? */
   int with_SNIa_feedback;
 
-  /*! Are we doing SNII/HMXB feedback? [GANE] */
-  int with_SNII_HMXB_feedback;
+  /*! Are we doing SNII feedback? [GANE] */
+  int with_SNII_feedback;
+
+  /*! Are we doing HMXB feedback? [GANE] */
+  int with_HMXB_feedback;
 
   /* ------------ Yield tables    ----------------- */
 
@@ -161,13 +164,13 @@ struct feedback_props {
   /* Table of lifetime values */
   struct lifetime_table lifetimes;
 
-  /* ------------- SNII/HMXB feedback energy table [GANE] --------------- */
+  /* ------------- SNII feedback energy table [GANE] --------------- */
 
-  /* Table of SNII/HMXB feedback energy values */
-  struct energy_table feedback_energies;
+  /* Table of SNII feedback energy values */
+  struct energy_table SNII_energies;
 
-  /* Location of HMXB tables */
-  char energy_table_path[200];
+  /* Location of SNII tables */
+  char SNII_table_path[200];
 
   /* ------------- SNII parameters    --------------- */
 
@@ -207,18 +210,26 @@ struct feedback_props {
   /*! Specific kinetic energy injected from AGB ejectas (in internal units). */
   float AGB_ejecta_specific_kinetic_energy;
 
-  /* ------------- SNII/HMXB parameters [GANE] ---------------- */
+  /* ------------- HMXB feedback energy table [GANE] --------------- */
 
-  /*! Energy fraction for SNII/HMXB feedback */
+  /* Table of HMXB feedback energy values */
+  struct energy_table HMXB_energies;
+
+  /* Location of HMXB tables */
+  char HMXB_table_path[200];
+
+  /* ------------- SNII & HMXB parameters [GANE] ---------------- */
+
+  /*! Energy fraction for SNII & HMXB feedback */
   float f_E;
 
   /*! Type of feedback energy injection */
   char injection_type[20];
 
-  /*! Minimum timestep for SNII/HMXB feedback */
+  /*! Minimum timestep for SNII & HMXB feedback */
   float min_timestep_Gyr;
 
-  /*! Minimum temperature change for SNII/HMXB feedback */
+  /*! Minimum temperature change for SNII & HMXB feedback */
   float min_delta_T_K;
 
   /* ------------- Conversion factors --------------- */

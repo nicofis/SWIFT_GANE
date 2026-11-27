@@ -94,12 +94,16 @@ struct spart {
   /*! SNII[/HMXB] Feedback energy fraction [EAGLE & GANE] */
   float f_E;
 
-  /*! Total number of SNII/HMXB injection events this star performed [GANE] */
+  /*! Total number of SNII & HMXB injection events this star performed [GANE] */
   int number_of_feedback_events;
 
-  /*! Cumulative energy ejected via SNII/HMXB thermal feedback since birth,
+  /*! Cumulative energy ejected via SNII thermal feedback since birth,
    *  in internal units [GANE] */
-  float cumulative_feedback_energy_ejected;
+  float cumulative_SNII_energy_ejected;
+
+  /*! Cumulative energy ejected via HMXB thermal feedback since birth,
+   *  in internal units [GANE] */
+  float cumulative_HMXB_energy_ejected;
 
   /*! The physical birth density */
   float birth_density;

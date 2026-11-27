@@ -112,22 +112,25 @@ struct feedback_spart_data {
       /*! Energy change due to thermal and kinetic energy of ejecta */
       float energy;
 
-      /*! Number of SNII/HMXB energy injections in thermal form [GANE] */
+      /*! Number of SNII & HMXB energy injections in thermal form [GANE] */
       int num_of_thermal_energy_inj;
 
-      /*! Change in energy from SNII/HMXB feedback energy injection [GANE] */
+      /*! Change in energy from SNII & HMXB feedback energy injection [GANE] */
       float delta_u;
 
     } to_distribute;
   };
 
-  /* Instantiate ray structs for SNII/HMXB isotropic feedback  */
+  /* Instantiate ray structs for SNII & HMXB isotropic feedback  */
   struct ray_data SNII_rays[eagle_SNII_feedback_num_of_rays];
 
-  /* Reserved energy for SNII/HMXB feedback [GANE] */
-  float delta_E_reservoir;
+  /* Reserved energy for SNII feedback [GANE] */
+  float delta_E_SNII_reservoir;
 
-  /* Time since the last SNII/HMXB feedback event [GANE] */
+  /* Reserved energy for HMXB feedback [GANE] */
+  float delta_E_HMXB_reservoir;
+
+  /* Time since the last SNII & HMXB feedback event [GANE] */
   float time_since_last_feedback_event;
 
 };

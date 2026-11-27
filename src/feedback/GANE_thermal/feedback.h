@@ -169,8 +169,9 @@ __attribute__((always_inline)) INLINE static void feedback_first_init_spart(
     struct spart *sp, const struct feedback_props *feedback_props) {
 
   feedback_init_spart(sp);
-  /* Initialize the reserved energy for SNII/HMXB feedback [GANE] */
-  sp->feedback_data.delta_E_reservoir = 0.f;
+  /* Initialize the reserved energies for SNII & HMXB feedback [GANE] */
+  sp->feedback_data.delta_E_SNII_reservoir = 0.f;
+  sp->feedback_data.delta_E_HMXB_reservoir = 0.f;
   /* Initialize the time since the last SNII/HMXB feedback event [GANE] */
   sp->feedback_data.time_since_last_feedback_event = 0.f;
 }

@@ -29,13 +29,43 @@
 /*! Number of age bins considered for the SNII feedback */
 #define gane_feedback_N_ages 51
 
+/*! Feedback channels with an energy table [GANE] */
+enum gane_feedback_source {
+  gane_source_SNII,
+  gane_source_HMXB
+};
+
+/* Non-const version, for allocating and reading */
+INLINE static struct energy_table *get_energy_table(
+    struct feedback_props *fp, const enum gane_feedback_source src) {
+  switch (src) {
+    case gane_source_SNII: return &fp->SNII_energies;
+    case gane_source_HMXB: return &fp->HMXB_energies;
+    default: error("Invalid feedback source");
+  }
+  return NULL;
+}
+
+/* Const version, for interpolation (feedback_props is const there) */
+INLINE static const struct energy_table *get_energy_table_const(
+    const struct feedback_props *fp, const enum gane_feedback_source src) {
+  switch (src) {
+    case gane_source_SNII: return &fp->SNII_energies;
+    case gane_source_HMXB: return &fp->HMXB_energies;
+    default: error("Invalid feedback source");
+  }
+  return NULL;
+}
+
 /**
  * @brief reads stellar feedback energy tables and stores them in stars_props data
  * struct
  *
  * @param feedback_props the #feedback_props data struct to read the table into.
+ * @param src the feedback source enum from where to read the tables (SNII or HMXB).
  */
-INLINE static void read_energy_tables(struct feedback_props *feedback_props) {
+INLINE static void read_energy_tables(struct feedback_props *feedback_props, 
+  const enum gane_feedback_source src) {
 
 #ifdef HAVE_HDF5
 
@@ -44,9 +74,16 @@ INLINE static void read_energy_tables(struct feedback_props *feedback_props) {
 
   hid_t file_id, dataset;
   herr_t status;
-
-  /* Open HMXB tables for reading */
-  sprintf(fname, "%s", feedback_props->energy_table_path);
+  
+  /* Read feedback source */
+  struct energy_table *table = get_energy_table(feedback_props, src);
+  const char *table_path = (src == gane_source_SNII)
+                           ? feedback_props->SNII_table_path
+                           : feedback_props->HMXB_table_path;
+  
+  /* Open SNII/HMXB tables for reading */
+  sprintf(fname, "%s", table_path);
+  
   file_id = H5Fopen(fname, H5F_ACC_RDONLY, H5P_DEFAULT);
   if (file_id < 0) error("unable to open file %s\n", fname);
 
@@ -55,7 +92,7 @@ INLINE static void read_energy_tables(struct feedback_props *feedback_props) {
   if (dataset < 0) error("Error opening Metallicities dataset");
 
   status = H5Dread(dataset, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT,
-                   feedback_props->feedback_energies.metallicity);
+                  table->metallicity);
   if (status < 0) error("error reading metallicities");
 
   status = H5Dclose(dataset);
@@ -66,7 +103,7 @@ INLINE static void read_energy_tables(struct feedback_props *feedback_props) {
   if (dataset < 0) error("Error opening Ages dataset");
 
   status = H5Dread(dataset, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT,
-                   feedback_props->feedback_energies.age);
+                  table->age);
   if (status < 0) error("error reading ages");
 
   status = H5Dclose(dataset);
@@ -82,7 +119,7 @@ INLINE static void read_energy_tables(struct feedback_props *feedback_props) {
   if (dataset < 0) error("error opening feedback energy dataset");
 
   status = H5Dread(dataset, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT,
-                   temp_energy);
+                  temp_energy);
   if (status < 0) error("error reading feedback energy table");
 
   status = H5Dclose(dataset);
@@ -91,7 +128,7 @@ INLINE static void read_energy_tables(struct feedback_props *feedback_props) {
   /* Copy from temporary array to final destination struct */
   for (int i = 0; i < gane_feedback_N_metals; i++) {
     for (int j = 0; j < gane_feedback_N_ages; j++) {
-      feedback_props->feedback_energies.energy[i][j] = temp_energy[i][j];
+      table->energy[i][j] = temp_energy[i][j];
     }
   }
 
@@ -106,13 +143,17 @@ INLINE static void read_energy_tables(struct feedback_props *feedback_props) {
  * @brief allocates space for the feedback energy tables
  *
  * @param feedback_props the #feedback_props data struct to store the tables in
+ * @param src the feedback source enum from where to read the tables (SNII or HMXB).
  */
 INLINE static void allocate_energy_tables(
-    struct feedback_props *feedback_props) {
+    struct feedback_props *feedback_props, const enum gane_feedback_source src) {
+  
+  /* Read feedback source */
+  struct energy_table *table = get_energy_table(feedback_props, src);
 
   /* Allocate array for metallicity bins */
   if (swift_memalign("feedback-tables",
-                     (void **)&feedback_props->feedback_energies.metallicity,
+                     (void **)&table->metallicity,
                      SWIFT_STRUCT_ALIGNMENT,
                      gane_feedback_N_metals * sizeof(double)) != 0) {
     error("Failed to allocate metallicity array");
@@ -120,17 +161,17 @@ INLINE static void allocate_energy_tables(
 
   /* Allocate array for ages bins */
   if (swift_memalign("feedback-tables",
-                     (void **)&feedback_props->feedback_energies.age,
+                     (void **)&table->age,
                      SWIFT_STRUCT_ALIGNMENT,
                      gane_feedback_N_ages * sizeof(double)) != 0) {
     error("Failed to allocate age array");
   }
 
   /* Allocate feedback energy array */
-  feedback_props->feedback_energies.energy =
+  table->energy =
       (double **)malloc(gane_feedback_N_metals * sizeof(double *));
   for (int i = 0; i < gane_feedback_N_metals; i++) {
-    feedback_props->feedback_energies.energy[i] =
+    table->energy[i] =
         (double *)malloc(gane_feedback_N_ages * sizeof(double));
   }
 }
@@ -142,13 +183,16 @@ INLINE static void allocate_energy_tables(
  * @param star_age age of the #spart.
  * @param Z_birth #spart's metallicity at birth.
  * @param feedback_props the properties of the feedback model.
+ * @param src the feedback source enum from where to read the tables (SNII or HMXB).
  */
 INLINE static double interpolate_feedback_energy(
   const double star_age, const double Z_birth,
-  const struct feedback_props *feedback_props) {
+  const struct feedback_props *feedback_props, 
+  const enum gane_feedback_source src) {
   
   /* Get table */
-  const struct energy_table *energy_table = &feedback_props->feedback_energies;
+  const struct energy_table *energy_table = 
+      get_energy_table_const(feedback_props, src);
   
   /* Find closests metallicities to Z_birth in feedback energy tables */
   int i;
@@ -198,14 +242,16 @@ INLINE static double interpolate_feedback_energy(
  * restart
  *
  * @param fp the #feedback_props structure
+ * @param src the feedback source from where to read the tables (SNII or HMXB).
  */
-void feedback_restore_energy_tables(struct feedback_props *fp) {
+void feedback_restore_energy_tables(struct feedback_props *fp, 
+                                    const enum gane_feedback_source src) {
 
-  /* Allocate yield tables  */
-  allocate_energy_tables(fp);
+  /* Allocate energy tables  */
+  allocate_energy_tables(fp, src);
 
   /* Read the tables  */
-  read_energy_tables(fp);
+  read_energy_tables(fp, src);
 }
 
 #endif /* SWIFT_GANE_FEEDBACK_ENERGY_TABLES_H */

@@ -70,11 +70,32 @@ INLINE static void compute_stellar_feedback(
   const double Z_birth =
       chemistry_get_star_total_metal_mass_fraction_for_feedback(sp);
   
-  const double E_start = interpolate_feedback_energy(star_age, Z_birth, feedback_props);
-  const double E_end = interpolate_feedback_energy(star_age + dt, Z_birth, feedback_props);
-  const double delta_E = (E_end - E_start) * sp->mass_init *
-                         feedback_props->feedback_energy_to_internal;
-  const double delta_E_tot = delta_E + sp->feedback_data.delta_E_reservoir;
+  double delta_E_SNII = 0.;
+  double delta_E_HMXB = 0.;
+
+  /* Compute SNII feedback, if corresponds */
+  if (feedback_props->with_SNII_feedback) {
+    const double E_start = interpolate_feedback_energy(star_age, Z_birth, 
+                           feedback_props, gane_source_SNII);
+    const double E_end = interpolate_feedback_energy(star_age + dt, Z_birth, 
+                           feedback_props, gane_source_SNII);
+    delta_E_SNII = (E_end - E_start) * sp->mass_init *
+                    feedback_props->feedback_energy_to_internal;
+  }
+
+  /* Compute HMXB feedback, if corresponds */
+  if (feedback_props->with_HMXB_feedback) {
+    const double E_start = interpolate_feedback_energy(star_age, Z_birth, 
+                           feedback_props, gane_source_HMXB);
+    const double E_end = interpolate_feedback_energy(star_age + dt, Z_birth, 
+                           feedback_props, gane_source_HMXB);
+    delta_E_HMXB = (E_end - E_start) * sp->mass_init *
+                    feedback_props->feedback_energy_to_internal;
+  }
+  
+  const double delta_E_SNII_tot = delta_E_SNII + sp->feedback_data.delta_E_SNII_reservoir;
+  const double delta_E_HMXB_tot = delta_E_HMXB + sp->feedback_data.delta_E_HMXB_reservoir;
+  const double delta_E_tot = delta_E_SNII_tot + delta_E_HMXB_tot;
   const double f_E =
       gane_feedback_energy_fraction(sp, feedback_props);
   
@@ -115,7 +136,8 @@ INLINE static void compute_stellar_feedback(
   if (!do_feedback) {
     /* If we are not doing feedback, we store the energy in the reservoir for 
     future timesteps and abort. */
-    sp->feedback_data.delta_E_reservoir += delta_E;
+    sp->feedback_data.delta_E_SNII_reservoir += delta_E_SNII;
+    sp->feedback_data.delta_E_HMXB_reservoir += delta_E_HMXB;
     return;
   }
 
@@ -132,11 +154,15 @@ INLINE static void compute_stellar_feedback(
   sp->feedback_data.to_distribute.num_of_thermal_energy_inj =
       number_of_feedback_events;
 
-  /* Track cumulative energy ejected by this star via SNII/HMXB feedback [tracking] */
-  sp->cumulative_feedback_energy_ejected += f_E * delta_E_tot;
+  /* Track cumulative energy ejected by this star via SNII feedback [tracking] */
+  sp->cumulative_SNII_energy_ejected += f_E * delta_E_SNII_tot;
+
+  /* Track cumulative energy ejected by this star via HMXB feedback [tracking] */
+  sp->cumulative_HMXB_energy_ejected += f_E * delta_E_HMXB_tot;
 
   /* Reset the reservoir since we have now injected the energy */
-  sp->feedback_data.delta_E_reservoir = 0.f;
+  sp->feedback_data.delta_E_SNII_reservoir = 0.f;
+  sp->feedback_data.delta_E_HMXB_reservoir = 0.f;
   sp->feedback_data.time_since_last_feedback_event = 0.f;
 }
 
@@ -237,7 +263,8 @@ void compute_stellar_evolution(const struct feedback_props *feedback_props,
 
   /* Compute properties of the SNII/HMXB feedback model [GANE] */
   /* Check first if the star hasn't died yet */
-  if (feedback_props->with_SNII_HMXB_feedback && star_age_Gyr < 0.05) {
+  if ((feedback_props->with_SNII_feedback || feedback_props->with_HMXB_feedback) 
+      && star_age_Gyr < 0.05) {
     compute_stellar_feedback(sp, star_age_Gyr, dt_Gyr, ngb_Number, 
                           ngb_gas_mass, feedback_props);
   }
@@ -314,8 +341,11 @@ void feedback_props_init(struct feedback_props *fp,
       parser_get_param_int(params, "GANEFeedback:use_SNIa_feedback");
   
   /* [GANE] */
-  fp->with_SNII_HMXB_feedback =
-      parser_get_param_int(params, "GANEFeedback:use_SNII_HMXB_feedback");
+  fp->with_SNII_feedback =
+      parser_get_param_int(params, "GANEFeedback:use_SNII_feedback");
+
+  fp->with_HMXB_feedback =
+      parser_get_param_int(params, "GANEFeedback:use_HMXB_feedback");
 
   fp->with_AGB_enrichment =
       parser_get_param_int(params, "GANEFeedback:use_AGB_enrichment");
@@ -329,13 +359,6 @@ void feedback_props_init(struct feedback_props *fp,
   if (fp->with_SNIa_feedback && !fp->with_SNIa_enrichment) {
     error("Cannot run with SNIa feedback without SNIa enrichment.");
   }
-
-  /* The EAGLE SNII energy model does not exist in GANE [GANE] */
-  if (parser_does_param_exist(params, "GANEFeedback:use_SNII_feedback") &&
-      parser_get_param_int(params, "GANEFeedback:use_SNII_feedback"))
-    error("GANEFeedback:use_SNII_feedback is not available in the GANE model. "
-          "SNII energy is injected via the SNII/HMXB table "
-          "(use_SNII_HMXB_feedback).");
 
   /* Properties of the IMF model ------------------------------------------ */
 
@@ -534,18 +557,30 @@ void feedback_props_init(struct feedback_props *fp,
    * mass bins used in IMF  */
   compute_ejecta(fp);
 
-  /* Initialise the SNII/HMXB table, if corresponds [GANE] -------------------------------------- */
+  /* Initialise the SNII/HMXB tables, if corresponds [GANE] -------------------------------------- */
 
-  if (fp->with_SNII_HMXB_feedback) {
-  /* Read feedback energy table filepath  */
-  parser_get_param_string(params, "GANEFeedback:energy_filename",
-                          fp->energy_table_path);
+  if (fp->with_SNII_feedback) {
+    /* Read feedback energy table filepath  */
+    parser_get_param_string(params, "GANEFeedback:SNII_filename",
+                            fp->SNII_table_path);
 
-  /* Allocate feedback energy tables */
-  allocate_energy_tables(fp);
+    /* Allocate feedback energy tables */
+    allocate_energy_tables(fp, gane_source_SNII);
 
-  /* Read the tables  */
-  read_energy_tables(fp);
+    /* Read the tables  */
+    read_energy_tables(fp, gane_source_SNII);
+  }
+
+  if (fp->with_HMXB_feedback) {
+    /* Read feedback energy table filepath  */
+    parser_get_param_string(params, "GANEFeedback:HMXB_filename",
+                            fp->HMXB_table_path);
+
+    /* Allocate feedback energy tables */
+    allocate_energy_tables(fp, gane_source_HMXB);
+
+    /* Read the tables  */
+    read_energy_tables(fp, gane_source_HMXB);
   }
 
   /* Table energies are in erg / Msun */
@@ -583,9 +618,13 @@ void feedback_clean(struct feedback_props *fp) {
   swift_free("feedback-tables", fp->yield_SNII.ejecta_IMF_resampled);
   swift_free("feedback-tables", fp->yield_SNII.total_metals);
   swift_free("feedback-tables", fp->yield_SNII.total_metals_IMF_resampled);
-  if (fp->with_SNII_HMXB_feedback) {
-    swift_free("feedback-tables", fp->feedback_energies.age); // [GANE]
-    swift_free("feedback-tables", fp->feedback_energies.metallicity); // [GANE]
+  if (fp->with_SNII_feedback) {
+    swift_free("feedback-tables", fp->SNII_energies.age); // [GANE]
+    swift_free("feedback-tables", fp->SNII_energies.metallicity); // [GANE]
+  }
+  if (fp->with_HMXB_feedback) {
+    swift_free("feedback-tables", fp->HMXB_energies.age); // [GANE]
+    swift_free("feedback-tables", fp->HMXB_energies.metallicity); // [GANE]
   }
   swift_free("feedback-tables", fp->lifetimes.mass);
   swift_free("feedback-tables", fp->lifetimes.metallicity);
@@ -607,11 +646,17 @@ void feedback_clean(struct feedback_props *fp) {
   }
   free(fp->AGB_element_names);
   /* [GANE] */
-  if (fp->with_SNII_HMXB_feedback) {
+  if (fp->with_SNII_feedback) {
     for (int i = 0; i < gane_feedback_N_metals; i++) {
-      free(fp->feedback_energies.energy[i]);
+      free(fp->SNII_energies.energy[i]);
     }
-    free(fp->feedback_energies.energy);
+    free(fp->SNII_energies.energy);
+  }
+  if (fp->with_HMXB_feedback) {
+    for (int i = 0; i < gane_feedback_N_metals; i++) {
+      free(fp->HMXB_energies.energy[i]);
+    }
+    free(fp->HMXB_energies.energy);
   }
 }
 
@@ -642,10 +687,15 @@ void feedback_struct_dump(const struct feedback_props *feedback, FILE *stream) {
   feedback_copy.SNII_element_names = NULL;
   feedback_copy.AGB_element_names = NULL;
 
-  /* zero feedback energy table pointers [GANE] */
-  feedback_copy.feedback_energies.age = NULL;
-  feedback_copy.feedback_energies.metallicity = NULL;
-  feedback_copy.feedback_energies.energy = NULL;
+  /* zero SNII energy table pointers [GANE] */
+  feedback_copy.SNII_energies.age = NULL;
+  feedback_copy.SNII_energies.metallicity = NULL;
+  feedback_copy.SNII_energies.energy = NULL;
+
+  /* zero HMXB energy table pointers [GANE] */
+  feedback_copy.HMXB_energies.age = NULL;
+  feedback_copy.HMXB_energies.metallicity = NULL;
+  feedback_copy.HMXB_energies.energy = NULL;
 
   /* zero mass bins table */
   feedback_copy.yield_mass_bins = NULL;
@@ -682,7 +732,11 @@ void feedback_struct_restore(struct feedback_props *feedback, FILE *stream) {
     feedback_restore_tables(feedback);
 
   /* [GANE] */
-  if (feedback->with_SNII_HMXB_feedback &&
-    strlen(feedback->energy_table_path) != 0)
-    feedback_restore_energy_tables(feedback);
+  if (feedback->with_SNII_feedback &&
+    strlen(feedback->SNII_table_path) != 0)
+    feedback_restore_energy_tables(feedback, gane_source_SNII);
+  
+  if (feedback->with_HMXB_feedback &&
+    strlen(feedback->HMXB_table_path) != 0)
+    feedback_restore_energy_tables(feedback, gane_source_HMXB);
 }
